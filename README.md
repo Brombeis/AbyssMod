@@ -36,11 +36,13 @@
 | **[s88037zz/AbyssMod](https://github.com/s88037zz/AbyssMod)** | 插件本體 C# 原始碼 | 此 repo，含 Release 下載 |
 | **[s88037zz/dotabyss-translation](https://github.com/s88037zz/dotabyss-translation)** | 劇情 / UI 翻譯 JSON | 啟動時從 CDN 自動下載 |
 
-翻譯資料不包含在 Release 壓縮包內，插件首次啟動時會依 `AbyssMod.cfg` 的 `CDN` 設定自動下載到：
+翻譯資料不包含在 Release 壓縮包內，插件啟動時會依 `AbyssMod.cfg` 的 `CDN` 設定自動下載到：
 
 ```
 BepInEx/plugins/AbyssMod/cache/translations/
 ```
+
+其中 `other/{category}/` 也會自動同步；命中 other/ 缓存的译文**无需开启机翻**即可显示。
 
 ---
 

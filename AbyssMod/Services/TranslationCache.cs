@@ -161,6 +161,114 @@ namespace AbyssMod.Services
         }
 
         /// <summary>
+        /// 从 CDN 同步 <c>other/{category}/</c> 机翻/校對缓存。
+        /// 远程条目覆盖本地同 key；本地独有 key 保留。
+        /// </summary>
+        public async Task SyncOtherFromCdnAsync()
+        {
+            if (string.IsNullOrWhiteSpace(_cdn))
+                return;
+
+            var categories = CollectOtherCategoryCandidates().ToList();
+            if (categories.Count == 0)
+                return;
+
+            Logger.Info($"Syncing other/ from CDN ({categories.Count} categories)...");
+            var tasks = categories.Select(SyncOtherCategoryAsync);
+            await Task.WhenAll(tasks);
+        }
+
+        private IEnumerable<string> CollectOtherCategoryCandidates()
+        {
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var cat in TextClassifier.AllCustomCategories)
+                set.Add(cat);
+
+            foreach (var cat in TranslationPaths.EnumerateOtherCategories(_cacheDir, _language))
+                set.Add(cat);
+
+            if (_manifest?.Other != null)
+            {
+                foreach (var cat in _manifest.Other.Keys)
+                    set.Add(cat);
+            }
+
+            return set;
+        }
+
+        private async Task SyncOtherCategoryAsync(string category)
+        {
+            string cacheKey  = $"{_language}/other/{category}";
+            string cachePath = TranslationPaths.BuildOtherCachePath(_cacheDir, category, _language);
+            string remoteUrl = TranslationPaths.BuildOtherRemoteUrl(_cdn, category, _language);
+            string expectedHash = GetOtherManifestHash(category);
+
+            var semaphore = _locks.GetOrAdd(cacheKey, _ => new SemaphoreSlim(1, 1));
+            await semaphore.WaitAsync();
+            try
+            {
+                if (expectedHash != null && File.Exists(cachePath))
+                {
+                    string localHash = HashFile(cachePath);
+                    if (localHash == expectedHash)
+                    {
+                        Logger.Info($"other/{category} cache hit");
+                        return;
+                    }
+                }
+
+                Dictionary<string, string> remote;
+                try
+                {
+                    var response = await _client.GetAsync(remoteUrl);
+                    if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                        return;
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        Logger.Warn($"other/{category} fetch returned {response.StatusCode}");
+                        return;
+                    }
+
+                    var json = await response.Content.ReadAsStringAsync();
+                    remote = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+                    if (remote == null || remote.Count == 0)
+                        return;
+                }
+                catch (Exception e)
+                {
+                    Logger.Warn($"other/{category} fetch failed: {e.Message}");
+                    return;
+                }
+
+                Dictionary<string, string> local = File.Exists(cachePath)
+                    ? LoadFromFile(cachePath) ?? new Dictionary<string, string>()
+                    : new Dictionary<string, string>();
+
+                // 远程优先，保留本地尚未发布的条目
+                var merged = new Dictionary<string, string>(local);
+                foreach (var kv in remote)
+                    merged[kv.Key] = kv.Value;
+
+                SaveToFile(cachePath, merged);
+                Logger.Info($"other/{category} synced from CDN: +{remote.Count} remote, {merged.Count} total");
+            }
+            finally
+            {
+                semaphore.Release();
+                CleanupLocksIfNeeded();
+            }
+        }
+
+        private string GetOtherManifestHash(string category)
+        {
+            if (_manifest?.Other == null)
+                return null;
+            return _manifest.Other.TryGetValue(category, out var hash) ? hash : null;
+        }
+
+        /// <summary>
         /// 加载翻译数据，支持缓存感知逻辑。
         /// </summary>
         /// <param name="type">翻译类型：names、words 或 novels。</param>

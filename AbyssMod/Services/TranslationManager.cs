@@ -66,6 +66,9 @@ public class TranslationManager
 
         await _cache.FetchManifestAsync();
 
+        await _cache.SyncOtherFromCdnAsync();
+        MachineTranslator.ReloadFromDisk();
+
         // 作者类型：显式加载（含 CDN 哈希校验）
         var nameTask        = _cache.LoadAsync(TranslationPaths.Names);
         var titleTask       = _cache.LoadAsync(TranslationPaths.Titles);

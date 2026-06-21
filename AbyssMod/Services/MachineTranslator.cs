@@ -88,6 +88,20 @@ public static class MachineTranslator
         );
     }
 
+    /// <summary>
+    /// 重新从磁盘加载 other/ 缓存（CDN 同步完成后调用）。
+    /// </summary>
+    public static void ReloadFromDisk()
+    {
+        if (!_initialized)
+            return;
+
+        _cache.Clear();
+        LoadAllCaches();
+        PruneGraduatedKeys();
+        Logger.Info($"MachineTranslator reloaded from disk. cached={_cache.Count}");
+    }
+
     // ──────────────────────────────────────────────────
     // 公开接口
     // ──────────────────────────────────────────────────
@@ -97,7 +111,7 @@ public static class MachineTranslator
     /// </summary>
     public static string Handle(string category, string text)
     {
-        if (!_initialized || !Config.MTEnabled.Value || string.IsNullOrEmpty(text))
+        if (!_initialized || string.IsNullOrEmpty(text))
             return text;
         // 角色名不机翻：片假名音译不可靠，仅由 TextTranslator 收集 raw 供人工翻译后补入 names。
         if (category == TextClassifier.Name)
@@ -113,7 +127,11 @@ public static class MachineTranslator
             if (filled != null)
                 return filled;
         }
-        else if (_pending.TryAdd(template, category))
+
+        if (!Config.MTEnabled.Value)
+            return text;
+
+        if (_pending.TryAdd(template, category))
         {
             if (Interlocked.Increment(ref _pendingDirty) % 20 == 0)
                 SavePending();

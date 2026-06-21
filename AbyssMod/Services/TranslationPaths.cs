@@ -64,6 +64,18 @@ public static class TranslationPaths
     }
 
     /// <summary>
+    /// 构建 other/{category}/ 远程 URL：<c>{cdn}/other/{category}/{language}.json</c>。
+    /// </summary>
+    public static string BuildOtherRemoteUrl(string cdn, string category, string language) =>
+        $"{cdn.TrimEnd('/')}/{Other}/{category}/{language}.json";
+
+    /// <summary>
+    /// 构建 other/{category}/ 本地缓存路径。
+    /// </summary>
+    public static string BuildOtherCachePath(string cacheDir, string category, string language) =>
+        Path.Combine(cacheDir, Other, category, $"{language}.json");
+
+    /// <summary>
     /// 构建本地缓存文件路径。
     /// 本地自定义类别（不在 <see cref="ReservedTypes"/> 中）统一放在 <c>add-on/{type}/{language}.json</c>。
     /// </summary>
@@ -96,6 +108,23 @@ public static class TranslationPaths
             yield break;
 
         foreach (var dir in Directory.GetDirectories(addOnDir))
+        {
+            var langFile = Path.Combine(dir, $"{language}.json");
+            if (File.Exists(langFile))
+                yield return Path.GetFileName(dir);
+        }
+    }
+
+    /// <summary>
+    /// 枚举 <c>translations/other/</c> 下已有语言文件的子类别目录名。
+    /// </summary>
+    public static IEnumerable<string> EnumerateOtherCategories(string cacheDir, string language)
+    {
+        var otherDir = Path.Combine(cacheDir, Other);
+        if (!Directory.Exists(otherDir))
+            yield break;
+
+        foreach (var dir in Directory.GetDirectories(otherDir))
         {
             var langFile = Path.Combine(dir, $"{language}.json");
             if (File.Exists(langFile))

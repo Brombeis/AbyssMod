@@ -25,5 +25,9 @@ namespace AbyssMod
 
         [JsonPropertyName("novels")]
         public Dictionary<string, string> Novels { get; set; }
+
+        /// <summary>other/{category}/ 各子類別檔案雜湊（可選，社群 CDN 擴展）。</summary>
+        [JsonPropertyName("other")]
+        public Dictionary<string, string> Other { get; set; }
     }
 }
