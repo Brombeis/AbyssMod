@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.7] - 2026-06-21
+
+### 變更 / Changed
+
+- **首次啟動預設 CDN**：改為 `s88037zz/dotabyss-translation` 社群翻譯 repo
+- **首次啟動預設語言**：改為 `zh_Hant`（繁體）
+
+---
+
 ## [1.0.6] - 2026-06-21
 
 ### 新增 / Added
