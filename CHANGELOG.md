@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.8] - 2026-06-21
+
+### 修復 / Fixed
+
+- **`add-on/` 初次安裝不從 CDN 下載**：新增 `SyncAddOnFromCdnAsync()`，啟動時從 `{cdn}/add-on/{category}/` 同步社群精翻（12 個子類別）
+- **同步順序調整**：先拉取 `add-on/` 再拉取 `other/`，確保 `PruneGraduatedKeys` 能正確清理已被精翻收錄的機翻條目
+- **角色詳情頁技能不翻譯**：技能描述被誤分類為 `equipment_effect`；改為優先走 `ability_descriptions`，並跳過机翻缓存干扰
+- **`ability_descriptions` 模板匹配**：新增 `AbilityTextMatcher`，支援 `{[...]}` 模板与 UI 已代入数值（如 `414.2%`）的模糊匹配
+- **CDN 為空時**：仅读取本地 cache，不再发起无效 HTTP 请求
+- **`ability_descriptions` 合并策略**：远端更新与本机条目合并，避免旧 CDN 覆盖本地较新译法
+- **任務/圖鑑/設定等頁面翻譯缺口**：`TextTranslator` 新增 `titles` / `descriptions` 查詢與 `{0}` 數字模板匹配（`TemplateTextMatcher`）
+- **底部導航等 SetText 路徑**：**完全不 patch `SetText`**（IL2CPP 下 Prefix/Postfix 皆會 trampoline 自我遞迴 → Stack Overflow）；改由 `Hotkey.Update` 每 0.5s 節流掃描畫面 TMP，經 `m_text` 直寫 + `ForceMeshUpdate` 套用譯文
+- **頁面上下文分類**：任務、深淵代碼、劇情回想、設定選單依 UI 層級優先歸類，避免誤入 `equipment_effect`
+
+### 新增 / Added
+
+- **`manifest.add_on` 可選雜湊欄位**：支援對 add-on/ 各子類別做 cache 驗證
+- **`manifest.ability_descriptions` 雜湊欄位**：支援技能描述 cache 增量更新
+
+---
+
 ## [1.0.7] - 2026-06-21
 
 ### 變更 / Changed

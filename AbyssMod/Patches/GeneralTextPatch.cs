@@ -4,6 +4,7 @@ using HarmonyLib;
 using Project;
 using TMPro;
 using AbyssMod;
+using UnityEngine;
 
 namespace AbyssMod.Patches;
 
@@ -28,12 +29,58 @@ public static class GeneralTextPatch
     }
 
     // ──────────────────────────────────────────────────
-    // 注意：不可 patch TMP_Text.SetText(string) / SetText(string, bool) 多载！
-    // 在 Harmony + IL2CPP 下，patch 这些方法时调用「原方法」会再次 dispatch
-    // 回被 patch 的入口，形成无限递归 → Stack Overflow 崩溃。
-    // [ThreadStatic] 防护无效（递归发生在调用原方法阶段，Prefix 早已返回）。
-    // 游戏绝大多数界面文字都走 set_text 属性 setter，已由上方补丁覆盖。
+    // 注意：绝不可 patch TMP_Text.SetText(string) / SetText(string, bool)！
+    // 在 Harmony + IL2CPP 下，无论 Prefix 还是 Postfix，patch SetText 都会让
+    // il2cpp trampoline 自我递归 dispatch（SetText → SetText …）→ Stack Overflow。
+    // 底部导航等走 SetText 的界面，改由 RefreshVisibleText() 周期扫描 + m_text 直写翻译。
     // ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// 周期性扫描当前场景的 TMP 文本，翻译未命中条目。
+    /// 经 m_text 直写（TmpTextHelper），不调用 SetText，避免递归崩溃。
+    /// 由 Hotkey.Update 节流调用，也用于翻译加载完成后的一次性刷新。
+    /// </summary>
+    public static void RefreshVisibleText()
+    {
+        if (!Config.Translation.Value || _inTranslation)
+            return;
+
+        try
+        {
+            var all = UnityEngine.Object.FindObjectsOfType<TMP_Text>(true);
+            foreach (var tmp in all)
+            {
+                if (tmp == null)
+                    continue;
+
+                string s = tmp.text;
+                if (string.IsNullOrEmpty(s) || !TextTranslator.HasKana(s))
+                    continue;
+
+                string before = s;
+                ApplyTranslation(ref s, tmp);
+                if (s == before)
+                    continue;
+
+                _inTranslation = true;
+                try
+                {
+                    TmpTextHelper.TrySetTextDirect(tmp, s);
+                }
+                finally
+                {
+                    _inTranslation = false;
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Logger.Warn($"RefreshVisibleText failed: {e.Message}");
+        }
+    }
+
+    /// <summary>翻译加载完成后的一次性刷新（兼容旧调用名）。</summary>
+    public static void RefreshAllVisibleText() => RefreshVisibleText();
 
     // ──────────────────────────────────────────────────
     // 共用处理逻辑
@@ -54,11 +101,16 @@ public static class GeneralTextPatch
             string cat;
             if (IsNameField(instance))
                 cat = TextClassifier.Name;
+            else if (IsAbilityDescriptionField(instance) || TextClassifier.IsActionSkillDescription(s))
+                cat = TranslationPaths.AbilityDescriptions;
             else
-                cat = Config.ClassifyText.Value ? TextClassifier.Classify(s) : "ui_misc";
+                cat = UiContextHelper.ResolveCategory(instance, s)
+                    ?? (Config.ClassifyText.Value ? TextClassifier.Classify(s) : "ui_misc");
 
             s = TextTranslator.Process(cat, s);
-            s = MachineTranslator.Handle(cat, s);
+            // 技能描述只查 ability_descriptions，不走 equipment_effect 机翻缓存
+            if (cat != TranslationPaths.AbilityDescriptions)
+                s = MachineTranslator.Handle(cat, s);
         }
         finally
         {
@@ -98,41 +150,79 @@ public static class GeneralTextPatch
         return false;
     }
 
+    /// <summary>
+    /// 角色详情页技能描述字段（限界突破/技能说明等），强制走 ability_descriptions。
+    /// </summary>
+    private static bool IsAbilityDescriptionField(TMP_Text tmp)
+    {
+        if (tmp == null) return false;
+        try
+        {
+            var go = tmp.gameObject;
+            if (go == null) return false;
+
+            var self = go.name ?? string.Empty;
+            if (ContainsAnyIgnoreCase(self, "SkillDesc", "SkillDescription", "ActionSkill", "ChainSkill", "LimitBreak", "BreakEffect", "TextEffect"))
+                return true;
+            if (ContainsAnyIgnoreCase(self, "Description") && !ContainsAnyIgnoreCase(self, "Item", "Flavor"))
+                return true;
+
+            for (var t = go.transform?.parent; t != null; t = t.parent)
+            {
+                var n = t.name ?? string.Empty;
+                if (ContainsAnyIgnoreCase(
+                        n,
+                        "LimitBreak",
+                        "BreakLimit",
+                        "ActionSkill",
+                        "ChainSkill",
+                        "SkillDetail",
+                        "SkillInfo",
+                        "CharaDetail",
+                        "CharacterDetail",
+                        "BreakThrough",
+                        "AbilityDetail"))
+                    return true;
+            }
+        }
+        catch { }
+
+        return false;
+    }
+
+    private static bool ContainsAnyIgnoreCase(string haystack, params string[] needles)
+    {
+        foreach (var needle in needles)
+        {
+            if (haystack.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+        }
+        return false;
+    }
+
     // ──────────────────────────────────────────────────
     // 技能描述格式化器（战斗技能，不走分类器）
     // ──────────────────────────────────────────────────
 
     [HarmonyPrefix]
-    [HarmonyPatch(
-        typeof(SkillTextFormatter),
-        nameof(SkillTextFormatter.CreateActionSkill),
-        new Type[] { typeof(string), typeof(long), typeof(int) }
-    )]
+    [HarmonyPatch(typeof(SkillTextFormatter), nameof(SkillTextFormatter.CreateActionSkill))]
     public static void OnCreateActionSkill(ref string description)
     {
-        description = TextTranslator.Process("ability_descriptions", description);
+        description = TextTranslator.Process(TranslationPaths.AbilityDescriptions, description);
     }
 
     [HarmonyPrefix]
-    [HarmonyPatch(
-        typeof(SkillTextFormatter),
-        nameof(SkillTextFormatter.CreateChainSkill),
-        new Type[] { typeof(string), typeof(long), typeof(int) }
-    )]
+    [HarmonyPatch(typeof(SkillTextFormatter), nameof(SkillTextFormatter.CreateChainSkill))]
     public static void OnCreateChainSkill(ref string description)
     {
-        description = TextTranslator.Process("ability_descriptions", description);
+        description = TextTranslator.Process(TranslationPaths.AbilityDescriptions, description);
     }
 
     [HarmonyPrefix]
-    [HarmonyPatch(
-        typeof(SkillTextFormatter),
-        nameof(SkillTextFormatter.CreateAbility),
-        new Type[] { typeof(string), typeof(string) }
-    )]
+    [HarmonyPatch(typeof(SkillTextFormatter), nameof(SkillTextFormatter.CreateAbility))]
     public static void OnCreateAbility(ref string skillText, ref string awakeText)
     {
-        skillText = TextTranslator.Process("ability_descriptions", skillText);
-        awakeText = TextTranslator.Process("ability_descriptions", awakeText);
+        skillText = TextTranslator.Process(TranslationPaths.AbilityDescriptions, skillText);
+        awakeText = TextTranslator.Process(TranslationPaths.AbilityDescriptions, awakeText);
     }
 }

@@ -427,3 +427,6 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Release distribution archives (uploaded to GitHub Releases, not committed)
+AbyssMod-v*.zip

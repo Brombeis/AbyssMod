@@ -54,7 +54,7 @@ BepInEx/plugins/AbyssMod/cache/translations/
 
 ### 2. 下載 Release
 
-前往 [Releases](https://github.com/s88037zz/AbyssMod/releases) 頁面，找到最新版本（綠色 `Latest` 標識），展開 `Assets` 下載 `AbyssMod-v1.0.7.zip`。
+前往 [Releases](https://github.com/s88037zz/AbyssMod/releases) 頁面，找到最新版本（綠色 `Latest` 標識），展開 `Assets` 下載 `AbyssMod-v1.0.8.zip`。
 
 > ⚠️ 請下載 `.zip` 壓縮包，**不要**下載 `Source code`（那是原始碼，需要自行編譯）
 
@@ -341,7 +341,7 @@ translations/
 
 ### 打包 Release
 
-打包 `AbyssMod-v1.0.7.zip`，解壓到遊戲根目錄（與 `.exe` 同層），應包含：
+打包 `AbyssMod-v1.0.8.zip`，解壓到遊戲根目錄（與 `.exe` 同層），應包含：
 
 ```
 dotnet/
@@ -370,9 +370,9 @@ BepInEx/
 發布流程：
 
 ```bash
-git tag v1.0.7
-git push origin v1.0.7
-# 在 GitHub Releases 建立 Release，上傳 AbyssMod-v1.0.7.zip
+git tag v1.0.8
+git push origin v1.0.8
+# 在 GitHub Releases 建立 Release，上傳 AbyssMod-v1.0.8.zip
 ```
 
 ---

@@ -117,6 +117,10 @@ public static class TextClassifier
         if (string.IsNullOrEmpty(text))
             return UiMisc;
 
+        // 0. 主动/连锁技能描述（含 HIT、多段攻击），优先于 equipment_effect
+        if (IsActionSkillDescription(text))
+            return TranslationPaths.AbilityDescriptions;
+
         // 1. 装备/被动效果（高置信）
         if (ContainsAny(text, EquipmentKeywords) && (UpRegex.IsMatch(text) || text.Contains("秒間") || text.Contains("自身")))
             return EquipmentEffect;
@@ -193,5 +197,20 @@ public static class TextClassifier
             if (text.Contains(kw, StringComparison.Ordinal))
                 return true;
         return false;
+    }
+
+    /// <summary>
+    /// 主动技能/限界突破/Force Chain 追加效果等战斗技能句，应走 ability_descriptions。
+    /// </summary>
+    public static bool IsActionSkillDescription(string text)
+    {
+        if (!AbilityTextMatcher.LooksLikeAbility(text))
+            return false;
+
+        return text.Contains("HIT", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("ダメージを与", StringComparison.Ordinal)
+            || text.Contains("攻撃を", StringComparison.Ordinal)
+            || text.Contains("フォースチェイン", StringComparison.Ordinal)
+            || text.Contains("ダメージ倍率", StringComparison.Ordinal);
     }
 }

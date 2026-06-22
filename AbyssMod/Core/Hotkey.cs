@@ -13,6 +13,11 @@ namespace AbyssMod;
 public class Hotkey : MonoBehaviour
 {
     private const float DebounceInterval = 0.15f;
+
+    // 周期扫描翻译走 SetText 的界面（底部导航等无法被 set_text hook 捕获的文本）
+    private const float RefreshInterval = 0.5f;
+    private float _lastRefreshTime;
+
     private readonly Dictionary<KeyCode, float> _lastPressTime = new();
 
     private void Update()
@@ -24,6 +29,12 @@ public class Hotkey : MonoBehaviour
         {
             Plugin.ConfigFile.Reload();
             Logger.Info("Config reloaded");
+        }
+
+        if (Config.Translation.Value && Time.unscaledTime - _lastRefreshTime >= RefreshInterval)
+        {
+            _lastRefreshTime = Time.unscaledTime;
+            Patches.GeneralTextPatch.RefreshVisibleText();
         }
     }
 

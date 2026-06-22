@@ -23,11 +23,18 @@ namespace AbyssMod
         [JsonPropertyName("another_name")]
         public string AnotherName { get; set; }
 
+        [JsonPropertyName("ability_descriptions")]
+        public string AbilityDescriptions { get; set; }
+
         [JsonPropertyName("novels")]
         public Dictionary<string, string> Novels { get; set; }
 
         /// <summary>other/{category}/ 各子類別檔案雜湊（可選，社群 CDN 擴展）。</summary>
         [JsonPropertyName("other")]
         public Dictionary<string, string> Other { get; set; }
+
+        /// <summary>add-on/{category}/ 各子類別檔案雜湊（可選，社群精翻 CDN）。</summary>
+        [JsonPropertyName("add_on")]
+        public Dictionary<string, string> AddOn { get; set; }
     }
 }

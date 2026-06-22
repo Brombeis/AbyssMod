@@ -64,6 +64,18 @@ public static class TranslationPaths
     }
 
     /// <summary>
+    /// 构建 add-on/{category}/ 远程 URL：<c>{cdn}/add-on/{category}/{language}.json</c>。
+    /// </summary>
+    public static string BuildAddOnRemoteUrl(string cdn, string category, string language) =>
+        $"{cdn.TrimEnd('/')}/{AddOn}/{category}/{language}.json";
+
+    /// <summary>
+    /// 构建 add-on/{category}/ 本地缓存路径。
+    /// </summary>
+    public static string BuildAddOnCachePath(string cacheDir, string category, string language) =>
+        Path.Combine(cacheDir, AddOn, category, $"{language}.json");
+
+    /// <summary>
     /// 构建 other/{category}/ 远程 URL：<c>{cdn}/other/{category}/{language}.json</c>。
     /// </summary>
     public static string BuildOtherRemoteUrl(string cdn, string category, string language) =>

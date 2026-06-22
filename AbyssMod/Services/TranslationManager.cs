@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AbyssMod;
+using AbyssMod.Patches;
 using BepInEx.Unity.IL2CPP.Utils.Collections;
 using TMPro;
 using Utility.Fonts;
@@ -66,6 +67,7 @@ public class TranslationManager
 
         await _cache.FetchManifestAsync();
 
+        await _cache.SyncAddOnFromCdnAsync();
         await _cache.SyncOtherFromCdnAsync();
         MachineTranslator.ReloadFromDisk();
 
@@ -136,7 +138,14 @@ public class TranslationManager
         }
 
         Texts = merged;
-        Logger.Info($"Non-story text translation merged. Total: {Texts.Count} (local categories: {localCategories.Count})");
+        AbilityTextMatcher.Rebuild(AbilityDescriptions);
+        TemplateTextMatcher.Rebuild(merged, Titles, Descriptions);
+        Logger.Info(
+            $"Non-story text translation merged. Total: {Texts.Count} "
+                + $"(local categories: {localCategories.Count}, ability: {AbilityDescriptions.Count})"
+        );
+
+        GeneralTextPatch.RefreshAllVisibleText();
     }
 
     private static void MergeInto(

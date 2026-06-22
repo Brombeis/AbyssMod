@@ -88,6 +88,14 @@ namespace AbyssMod.Services
         /// </summary>
         public async Task FetchManifestAsync()
         {
+            if (string.IsNullOrWhiteSpace(_cdn))
+            {
+                TryLoadLocalManifest(
+                    TranslationPaths.BuildCachePath(_cacheDir, TranslationPaths.Manifest, _language)
+                );
+                return;
+            }
+
             var url = TranslationPaths.BuildRemoteUrl(_cdn, TranslationPaths.Manifest, _language);
             var path = TranslationPaths.BuildCachePath(
                 _cacheDir,
@@ -158,6 +166,117 @@ namespace AbyssMod.Services
             {
                 Logger.Error($"Failed to load local manifest: {e.Message}");
             }
+        }
+
+        /// <summary>
+        /// 从 CDN 同步 <c>add-on/{category}/</c> 社群精翻缓存。
+        /// 远程条目覆盖本地同 key；本地独有 key 保留。
+        /// </summary>
+        public async Task SyncAddOnFromCdnAsync()
+        {
+            if (string.IsNullOrWhiteSpace(_cdn))
+                return;
+
+            var categories = CollectAddOnCategoryCandidates().ToList();
+            if (categories.Count == 0)
+                return;
+
+            Logger.Info($"Syncing add-on/ from CDN ({categories.Count} categories)...");
+            var tasks = categories.Select(SyncAddOnCategoryAsync);
+            await Task.WhenAll(tasks);
+        }
+
+        private IEnumerable<string> CollectAddOnCategoryCandidates()
+        {
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var cat in TextClassifier.AllCustomCategories)
+                set.Add(cat);
+
+            set.Add(TranslationPaths.Items);
+            set.Add(TranslationPaths.Ui);
+            set.Add("dictionary");
+
+            foreach (var cat in TranslationPaths.EnumerateLocalCategories(_cacheDir, _language))
+                set.Add(cat);
+
+            if (_manifest?.AddOn != null)
+            {
+                foreach (var cat in _manifest.AddOn.Keys)
+                    set.Add(cat);
+            }
+
+            return set;
+        }
+
+        private async Task SyncAddOnCategoryAsync(string category)
+        {
+            string cacheKey  = $"{_language}/add-on/{category}";
+            string cachePath = TranslationPaths.BuildAddOnCachePath(_cacheDir, category, _language);
+            string remoteUrl = TranslationPaths.BuildAddOnRemoteUrl(_cdn, category, _language);
+            string expectedHash = GetAddOnManifestHash(category);
+
+            var semaphore = _locks.GetOrAdd(cacheKey, _ => new SemaphoreSlim(1, 1));
+            await semaphore.WaitAsync();
+            try
+            {
+                if (expectedHash != null && File.Exists(cachePath))
+                {
+                    string localHash = HashFile(cachePath);
+                    if (localHash == expectedHash)
+                    {
+                        Logger.Info($"add-on/{category} cache hit");
+                        return;
+                    }
+                }
+
+                Dictionary<string, string> remote;
+                try
+                {
+                    var response = await _client.GetAsync(remoteUrl);
+                    if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                        return;
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        Logger.Warn($"add-on/{category} fetch returned {response.StatusCode}");
+                        return;
+                    }
+
+                    var json = await response.Content.ReadAsStringAsync();
+                    remote = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+                    if (remote == null || remote.Count == 0)
+                        return;
+                }
+                catch (Exception e)
+                {
+                    Logger.Warn($"add-on/{category} fetch failed: {e.Message}");
+                    return;
+                }
+
+                Dictionary<string, string> local = File.Exists(cachePath)
+                    ? LoadFromFile(cachePath) ?? new Dictionary<string, string>()
+                    : new Dictionary<string, string>();
+
+                var merged = new Dictionary<string, string>(local);
+                foreach (var kv in remote)
+                    merged[kv.Key] = kv.Value;
+
+                SaveToFile(cachePath, merged);
+                Logger.Info($"add-on/{category} synced from CDN: +{remote.Count} remote, {merged.Count} total");
+            }
+            finally
+            {
+                semaphore.Release();
+                CleanupLocksIfNeeded();
+            }
+        }
+
+        private string GetAddOnManifestHash(string category)
+        {
+            if (_manifest?.AddOn == null)
+                return null;
+            return _manifest.AddOn.TryGetValue(category, out var hash) ? hash : null;
         }
 
         /// <summary>
@@ -302,6 +421,18 @@ namespace AbyssMod.Services
             await semaphore.WaitAsync();
             try
             {
+                // CDN 未配置：仅使用本地 cache
+                if (string.IsNullOrWhiteSpace(_cdn))
+                {
+                    if (File.Exists(cachePath))
+                    {
+                        Logger.Info($"CDN disabled, loading local cache: {cacheKey}");
+                        return LoadFromFile(cachePath);
+                    }
+                    Logger.Warn($"CDN disabled and no local cache for {cacheKey}");
+                    return new Dictionary<string, string>();
+                }
+
                 // 如果清单中有预期哈希值，先检查本地缓存
                 if (expectedHash != null && File.Exists(cachePath))
                 {
@@ -322,6 +453,22 @@ namespace AbyssMod.Services
                 var data = await GetAsync<Dictionary<string, string>>(remoteUrl);
                 if (data != null)
                 {
+                    // ability_descriptions 尚无 manifest 哈希，且社群 repo 常领先 CDN；
+                    // 合并而非覆盖，保留本机已有、远端尚未发布的条目。
+                    if (type == TranslationPaths.AbilityDescriptions && File.Exists(cachePath))
+                    {
+                        var local = LoadFromFile(cachePath) ?? new Dictionary<string, string>();
+                        int remoteCount = data.Count;
+                        var merged = new Dictionary<string, string>(local);
+                        foreach (var kv in data)
+                            merged[kv.Key] = kv.Value;
+                        data = merged;
+                        Logger.Info(
+                            $"ability_descriptions merged: {data.Count} total "
+                                + $"(remote {remoteCount}, +{data.Count - remoteCount} local-only kept)"
+                        );
+                    }
+
                     SaveToFile(cachePath, data);
                 }
                 else
@@ -381,7 +528,7 @@ namespace AbyssMod.Services
                 TranslationPaths.Titles => _manifest.Titles,
                 TranslationPaths.Descriptions => _manifest.Descriptions,
                 TranslationPaths.AnotherName => _manifest.AnotherName,
-                // ability_descriptions 不在 manifest 中，返回 null（每次直接拉远端）
+                TranslationPaths.AbilityDescriptions => _manifest.AbilityDescriptions,
                 TranslationPaths.Novels when id != null => _manifest.Novels != null
                 && _manifest.Novels.TryGetValue(id, out var hash)
                     ? hash

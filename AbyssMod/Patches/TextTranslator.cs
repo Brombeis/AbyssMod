@@ -29,8 +29,27 @@ public static class TextTranslator
             if (names != null && names.TryGetValue(text, out string tName))
                 return tName;
 
+            bool abilityContext = category == TranslationPaths.AbilityDescriptions
+                || LooksLikeAbility(text);
+
+            // 技能页优先走 ability 模糊匹配，避免被 equipment_effect 合并字典抢先或漏翻
+            if (abilityContext && AbilityTextMatcher.TryTranslate(text, out string abilityFirst))
+                return abilityFirst;
+
             if (texts != null && texts.TryGetValue(text, out string translated))
                 return translated;
+
+            var titles = trans.Titles;
+            if (titles != null && titles.TryGetValue(text, out string tTitle))
+                return tTitle;
+
+            var descriptions = trans.Descriptions;
+            if (descriptions != null && descriptions.TryGetValue(text, out string tDesc))
+                return tDesc;
+
+            // 任务/系统 UI 常显示具体数字，字典 key 为 {0} 模板
+            if (TemplateTextMatcher.TryTranslate(text, out string templated))
+                return templated;
         }
 
         if (Config.CollectText.Value
@@ -46,6 +65,8 @@ public static class TextTranslator
     /// 是否含日文假名（平假名或片假名）。用于判断是否为待翻译的日文原文，
     /// 避免收集纯数字、英文或已翻译的中文。
     /// </summary>
+    private static bool LooksLikeAbility(string text) => AbilityTextMatcher.LooksLikeAbility(text);
+
     public static bool HasKana(string s)
     {
         foreach (char c in s)
