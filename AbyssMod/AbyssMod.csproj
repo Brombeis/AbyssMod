@@ -15,7 +15,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <AssemblyName>AbyssMod</AssemblyName>
     <Product>AbyssMod</Product>
-    <Version>1.1.0</Version>
+    <Version>1.1.3</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <RestoreAdditionalProjectSources>
@@ -55,6 +55,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="AbyssMod.master_mapping.json" />
+    <EmbeddedResource Include="AbyssMod.master_mapping.json">
+      <LogicalName>AbyssMod.master_mapping.json</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 </Project>

@@ -144,55 +144,93 @@ public class TranslationManager
     private async Task MergeLocalAddOnFallbackAsync()
     {
         var merged = new Dictionary<string, string>();
+        var masterKeys = BuildMasterDataKeySet();
 
-        void MergeTable(string type)
+        void MergeTable(string type, ISet<string> skipKeys = null)
         {
             if (_tables.TryGetValue(type, out var table))
-                MergeInto(merged, table, type);
+                MergeInto(merged, table, type, skipKeys);
         }
 
+        // 1. legacy 底稿（后层 m_* 会覆盖同 key）
+        MergeTable(TranslationPaths.Titles);
+        MergeTable(TranslationPaths.Descriptions);
         MergeTable(TranslationPaths.AnotherName);
         MergeTable(TranslationPaths.AbilityDescriptions);
-        MergeTable("m_ability_details");
-        MergeTable("m_character_action_skills");
-        MergeTable("m_character_profiles");
-        MergeTable("m_tavern_character_cards");
-        MergeTable("m_nether_codes");
-        MergeTable("m_missions");
 
+        var language = Config.TranslationLanguage.Value;
         var localCategories = TranslationPaths
-            .EnumerateLocalCategories(_cache.CacheDir, Config.TranslationLanguage.Value)
+            .EnumerateLocalCategories(_cache.CacheDir, language)
             .Where(cat => cat != TranslationPaths.Ui)
             .ToList();
 
+        // 2. add-on：不写入已在任一 m_* 表中的 key
         if (localCategories.Count > 0)
         {
             var localTasks = localCategories.Select(cat => _cache.LoadAsync(cat)).ToList();
             await Task.WhenAll(localTasks);
             for (int i = 0; i < localCategories.Count; i++)
-                MergeInto(merged, localTasks[i].Result, $"add-on/{localCategories[i]}");
+                MergeInto(
+                    merged,
+                    localTasks[i].Result,
+                    $"add-on/{localCategories[i]}",
+                    masterKeys
+                );
         }
+
+        // 3. 全部 m_* 权威层（始终覆盖 legacy / add-on）
+        foreach (string type in TranslationPaths.EnumerateMasterDictTypes())
+        {
+            if (type.StartsWith("m_", StringComparison.Ordinal))
+                MergeTable(type);
+        }
+
+        // 4. names / ui_texts 仅补 m_* 未覆盖的 key
+        MergeTable(TranslationPaths.Names, masterKeys);
+        MergeTable(TranslationPaths.UiTexts, masterKeys);
 
         Texts = merged;
         Logger.Info(
             $"Non-story text fallback merged. Total: {Texts.Count} "
-                + $"(local add-on categories: {localCategories.Count})"
+                + $"(add-on: {localCategories.Count}, m_* keys: {masterKeys.Count})"
         );
+    }
+
+    private HashSet<string> BuildMasterDataKeySet()
+    {
+        var keys = new HashSet<string>();
+        foreach (string type in TranslationPaths.EnumerateMasterDictTypes())
+        {
+            if (!type.StartsWith("m_", StringComparison.Ordinal))
+                continue;
+            if (!_tables.TryGetValue(type, out var table))
+                continue;
+            foreach (string key in table.Keys)
+                keys.Add(key);
+        }
+        return keys;
     }
 
     private static void MergeInto(
         Dictionary<string, string> target,
         Dictionary<string, string> source,
-        string label
+        string label,
+        ISet<string> skipKeys = null
     )
     {
         if (source == null || source.Count == 0)
             return;
 
+        int merged = 0;
         foreach (var kv in source)
+        {
+            if (skipKeys != null && skipKeys.Contains(kv.Key))
+                continue;
             target[kv.Key] = kv.Value;
+            merged++;
+        }
 
-        Logger.Info($"Text fallback '{label}' merged. Total: {source.Count}");
+        Logger.Info($"Text fallback '{label}' merged. Added: {merged} (source: {source.Count})");
     }
 
     public async Task GetNovelTranslationAsync(string novelId)

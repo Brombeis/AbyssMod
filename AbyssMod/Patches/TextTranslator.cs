@@ -29,6 +29,10 @@ public static class TextTranslator
             if (names != null && names.TryGetValue(text, out string tName))
                 return tName;
 
+            var uiTexts = trans.GetTable(TranslationPaths.UiTexts);
+            if (uiTexts != null && uiTexts.TryGetValue(text, out string tUi))
+                return tUi;
+
             bool abilityContext = category == TranslationPaths.AbilityDescriptions
                 || LooksLikeAbility(text);
 

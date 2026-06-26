@@ -116,6 +116,7 @@ namespace AbyssMod.Services
                     }
                     else
                     {
+                        EnsureCacheDirectory(path);
                         await File.WriteAllTextAsync(path, json, Utf8);
                         Logger.Info($"Manifest loaded ({_language}). Hash: {_manifest.Hash}");
                         return;
@@ -696,12 +697,17 @@ namespace AbyssMod.Services
         /// </summary>
         private static void SaveToFile(string path, Dictionary<string, string> data)
         {
-            var directory = Path.GetDirectoryName(path);
-            if (!string.IsNullOrEmpty(directory))
-                Directory.CreateDirectory(directory);
+            EnsureCacheDirectory(path);
 
             var json = JsonSerializer.Serialize(data, JsonOptions);
             File.WriteAllText(path, json, Utf8);
+        }
+
+        private static void EnsureCacheDirectory(string path)
+        {
+            var directory = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(directory))
+                Directory.CreateDirectory(directory);
         }
 
         /// <summary>

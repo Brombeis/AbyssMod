@@ -16,17 +16,23 @@ public static class MasterMapping
 
     public static Dictionary<string, TableMapping> Tables { get; private set; } = [];
 
+    private const string ResourceName = "AbyssMod.master_mapping.json";
+
+    private const string ResourceNameAlt = "AbyssMod.AbyssMod.master_mapping.json";
+
     public static void Load()
     {
         try
         {
-            using Stream stream = Assembly
-                .GetExecutingAssembly()
-                .GetManifestResourceStream("AbyssMod.master_mapping.json");
+            using Stream stream = OpenMappingStream();
             if (stream == null)
             {
                 Logger.Error(
-                    "[MasterMapping] embedded resource not found: AbyssMod.master_mapping.json"
+                    "[MasterMapping] embedded resource not found: "
+                        + ResourceName
+                        + " (also tried "
+                        + ResourceNameAlt
+                        + ")"
                 );
                 Tables = [];
                 return;
@@ -77,6 +83,18 @@ public static class MasterMapping
             Logger.Error($"[MasterMapping] failed to load: {ex}");
             Tables = [];
         }
+    }
+
+    private static Stream OpenMappingStream()
+    {
+        var asm = Assembly.GetExecutingAssembly();
+        foreach (string name in new[] { ResourceName, ResourceNameAlt })
+        {
+            Stream stream = asm.GetManifestResourceStream(name);
+            if (stream != null)
+                return stream;
+        }
+        return null;
     }
 
     private static TableMapping BuildTable(string tableName, JsonElement tableEl)

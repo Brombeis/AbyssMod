@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.3] - 2026-06-26
+
+### 修復 / Fixed
+
+- **`Texts` 合併優先級**：`MergeLocalAddOnFallbackAsync` 改為 legacy/add-on 先合併、m_* 權威層後覆蓋；add-on 不再覆蓋已在 m_* 表中的 key（修復 equipment_effect 等 9 條兜底譯文被覆蓋）
+
+---
+
+## [1.1.2] - 2026-06-26
+
+### 修復 / Fixed
+
+- **主界面 UI 不翻译**：Unity 6000 / IL2CPP 下找不到 `TMP_Text.m_text`，`RefreshVisibleText` 与 `OnEnable` 静默失败；改以 `TMP_Text.text` 属性回退写入
+- **`ui_texts` 兜底**：合并进 `Texts` 字典，`TextTranslator` 亦直接查表
+
+---
+
+## [1.1.1] - 2026-06-26
+
+### 修復 / Fixed
+
+- **`master_mapping.json` 嵌入資源名稱**：SDK 預設為 `AbyssMod.AbyssMod.master_mapping.json`，導致 `ContentTypes` 為空、`m_*` 字典從不載入
+- **manifest 快取寫入失敗**：下載 manifest 時未建立 `cache/translations/manifest/` 子目錄
+
+---
+
 ## [1.1.0] - 2026-06-26
 
 ### 新增 / Added
