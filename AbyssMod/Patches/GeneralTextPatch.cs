@@ -28,6 +28,43 @@ public static class GeneralTextPatch
         ApplyTranslation(ref value, __instance);
     }
 
+    [HarmonyPostfix]
+    [HarmonyPatch(typeof(TextMeshProUGUI), nameof(TextMeshProUGUI.OnEnable))]
+    public static void OnUiTextEnable(TextMeshProUGUI __instance) =>
+        TranslateStaticUiText(__instance);
+
+    [HarmonyPostfix]
+    [HarmonyPatch(typeof(TextMeshPro), nameof(TextMeshPro.OnEnable))]
+    public static void OnWorldTextEnable(TextMeshPro __instance) =>
+        TranslateStaticUiText(__instance);
+
+    private static void TranslateStaticUiText(TMP_Text text)
+    {
+        if (text == null || !Config.Translation.Value)
+            return;
+
+        try
+        {
+            string translated = UiTextTranslator.Translate(text, text.text);
+            if (!string.Equals(translated, text.text, StringComparison.Ordinal))
+            {
+                _inTranslation = true;
+                try
+                {
+                    TmpTextHelper.TrySetTextDirect(text, translated);
+                }
+                finally
+                {
+                    _inTranslation = false;
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Logger.Warn($"TranslateStaticUiText failed: {e.Message}");
+        }
+    }
+
     // ──────────────────────────────────────────────────
     // 注意：绝不可 patch TMP_Text.SetText(string) / SetText(string, bool)！
     // 在 Harmony + IL2CPP 下，无论 Prefix 还是 Postfix，patch SetText 都会让
@@ -96,6 +133,17 @@ public static class GeneralTextPatch
         _inTranslation = true;
         try
         {
+            // ui_texts 精准查表（作者逻辑）
+            if (instance != null)
+            {
+                string uiHit = UiTextTranslator.Translate(instance, s);
+                if (!string.Equals(uiHit, s, StringComparison.Ordinal))
+                {
+                    s = uiHit;
+                    return;
+                }
+            }
+
             // 角色名字段（由 GameObject 名称精确判定）强制归入 name 类别，
             // 使所有界面的新角色名统一收集到 name，便于补入 names 字典。
             string cat;

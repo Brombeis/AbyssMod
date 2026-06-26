@@ -430,3 +430,6 @@ FodyWeavers.xsd
 
 # Release distribution archives (uploaded to GitHub Releases, not committed)
 AbyssMod-v*.zip
+
+# Decompiled author reference (local only)
+_author_decompile/

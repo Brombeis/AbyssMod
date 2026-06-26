@@ -1,0 +1,258 @@
+{
+  "_comment": "MasterData 翻译映射配置。表 → 字段 → 翻译字典。新增表只需在此追加，无需改 C# 代码。",
+  "_dicts": "dict 值对应 TranslationPaths 的类型名 / CDN 目录名（names/titles/descriptions/...）",
+  "_seal": "seal=true 表示译文走 RestoreSealNames 后处理（纹章名繁简修正）",
+  "_fallback": "同字段的多个条目构成 fallback 链：按顺序查，第一个命中即用，未命中继续下一个",
+  "dict_types": [
+    "m_ability_details",
+    "m_buff_types",
+    "m_chapter_quests",
+    "m_character_action_skills",
+    "m_character_profiles",
+    "m_character_skins",
+    "m_dictionary_non_player_characters",
+    "m_dictionary_worlds",
+    "m_enemy_skills",
+    "m_enchantment_details",
+    "m_event_top_characters",
+    "m_gacha_group_movies",
+    "m_missions",
+    "m_nether_floor_event_parts",
+    "m_nether_floor_events",
+    "m_nether_code_category_skills",
+    "m_nether_codes",
+    "m_novel_character_skins",
+    "m_novel_characters",
+    "m_novel_events",
+    "m_novel_homes",
+    "m_novel_mains",
+    "m_novel_others",
+    "m_novel_prologues",
+    "m_part_voices",
+    "m_plans",
+    "m_preregist_taverns",
+    "m_tavern_character_cards",
+    "names",
+    "ui_texts"
+  ],
+  "tables": {
+    "MAbilityDetails": {
+      "description": {
+        "dict": "m_ability_details",
+        "seal": true
+      },
+      "awake_description": {
+        "dict": "m_ability_details",
+        "seal": true
+      }
+    },
+    "MBuffTypes": {
+      "description": {
+        "dict": "m_buff_types"
+      }
+    },
+    "MEnchantmentDetails": {
+      "description": {
+        "dict": "m_enchantment_details"
+      }
+    },
+    "MEnemySkills": {
+      "description": {
+        "dict": "m_enemy_skills"
+      }
+    },
+    "MEventTopCharacters": {
+      "serif": {
+        "dict": "m_event_top_characters"
+      }
+    },
+    "MCharacterActionSkills": {
+      "description": {
+        "dict": "m_character_action_skills",
+        "seal": true
+      }
+    },
+    "MCharacters": {
+      "name": {
+        "dict": "names"
+      }
+    },
+    "MCharacterProfiles": {
+      "flavor_text": {
+        "dict": "m_character_profiles"
+      },
+      "another_name": {
+        "dict": "m_character_profiles"
+      },
+      "profile_like": {
+        "dict": "m_character_profiles"
+      },
+      "profile_dislike": {
+        "dict": "m_character_profiles"
+      }
+    },
+    "MCharacterSkins": {
+      "name": {
+        "dict": "m_character_skins"
+      },
+      "description": {
+        "dict": "m_character_skins"
+      },
+      "serif": {
+        "dict": "m_character_skins"
+      }
+    },
+    "MNovelPrologues": {
+      "title": {
+        "dict": "m_novel_prologues"
+      },
+      "description": {
+        "dict": "m_novel_prologues"
+      }
+    },
+    "MNovelOthers": {
+      "title": {
+        "dict": "m_novel_others"
+      },
+      "description": {
+        "dict": "m_novel_others"
+      }
+    },
+    "MNovelMains": {
+      "title": {
+        "dict": "m_novel_mains"
+      },
+      "description": {
+        "dict": "m_novel_mains"
+      }
+    },
+    "MNovelHomes": {
+      "title": {
+        "dict": "m_novel_homes"
+      }
+    },
+    "MNovelEvents": {
+      "title": {
+        "dict": "m_novel_events"
+      },
+      "description": {
+        "dict": "m_novel_events"
+      }
+    },
+    "MNovelCharacters": {
+      "title": {
+        "dict": "m_novel_characters"
+      },
+      "description": {
+        "dict": "m_novel_characters"
+      }
+    },
+    "MNovelCharacterSkins": {
+      "title": {
+        "dict": "m_novel_character_skins"
+      },
+      "description": {
+        "dict": "m_novel_character_skins"
+      }
+    },
+    "MTavernDialogue": {
+      "name": {
+        "dict": "names"
+      }
+    },
+    "MChapterQuests": {
+      "name": [
+        {
+          "dict": "m_chapter_quests"
+        },
+        {
+          "dict": "m_chapter_quests"
+        }
+      ]
+    },
+    "MPlans": {
+      "display_name": {
+        "dict": "m_plans"
+      }
+    },
+    "MGachaGroupMovies": {
+      "story_flavor_1": {
+        "dict": "m_gacha_group_movies"
+      },
+      "story_flavor_2": {
+        "dict": "m_gacha_group_movies"
+      },
+      "story_flavor_3": {
+        "dict": "m_gacha_group_movies"
+      }
+    },
+    "MDictionaryNonPlayerCharacters": {
+      "title": {
+        "dict": "m_dictionary_non_player_characters"
+      },
+      "desciption": {
+        "dict": "m_dictionary_non_player_characters"
+      }
+    },
+    "MDictionaryWorlds": {
+      "title": {
+        "dict": "m_dictionary_worlds"
+      },
+      "desciption": {
+        "dict": "m_dictionary_worlds"
+      }
+    },
+    "MPreregistTaverns": {
+      "title": {
+        "dict": "m_preregist_taverns"
+      }
+    },
+    "MMissions": {
+      "title": {
+        "dict": "m_missions"
+      }
+    },
+    "MNetherFloorEvents": {
+      "description": {
+        "dict": "m_nether_floor_events"
+      }
+    },
+    "MNetherFloorEventParts": {
+      "select_text": {
+        "dict": "m_nether_floor_event_parts"
+      },
+      "effect_text": {
+        "dict": "m_nether_floor_event_parts"
+      }
+    },
+    "MNetherCodes": {
+      "name": {
+        "dict": "m_nether_codes"
+      },
+      "description": {
+        "dict": "m_nether_codes"
+      }
+    },
+    "MNetherCodeCategorySkills": {
+      "name": {
+        "dict": "m_nether_code_category_skills"
+      },
+      "description": {
+        "dict": "m_nether_code_category_skills"
+      }
+    },
+    "MPartVoices": {
+      "text": {
+        "dict": "m_part_voices"
+      }
+    },
+    "MTavernCharacterCards": {
+      "name": {
+        "dict": "m_tavern_character_cards"
+      },
+      "description": {
+        "dict": "m_tavern_character_cards"
+      }
+    }
+  }
+}

@@ -13,31 +13,35 @@ using Utility.Toast;
 namespace AbyssMod.Services;
 
 /// <summary>
-/// 翻译管理器：协调翻译数据的加载、缓存和查询。
-/// 内部持有所有翻译数据。
+/// 翻译管理器：协调 masterdata 字典（m_*）、ui_texts 与 legacy 兜底字典的加载与查询。
 /// </summary>
 public class TranslationManager
 {
+    private static readonly HashSet<string> CriticalTypes =
+    [
+        TranslationPaths.Names,
+        TranslationPaths.UiTexts,
+    ];
+
     private readonly TranslationCache _cache;
     private readonly FontHelper _font;
+    private readonly object _loadLock = new();
+    private Task _loadTask;
 
     private readonly ConcurrentDictionary<string, Task> _loadingNovels = new();
+    private readonly Dictionary<string, Dictionary<string, string>> _tables = new();
 
     public Dictionary<string, string> Names { get; private set; } = [];
     public Dictionary<string, string> Titles { get; private set; } = [];
     public Dictionary<string, string> Descriptions { get; private set; } = [];
 
-    /// <summary>非剧情类文本的合并字典（角色二つ名 another_name、技能描述 ability_descriptions 及所有本地类别）。</summary>
+    /// <summary>非剧情类文本的合并字典（ui_misc 及所有本地类别兜底）。</summary>
     public Dictionary<string, string> Texts { get; private set; } = [];
 
-    /// <summary>
-    /// 技能/觉醒描述专属字典（ability_descriptions）。
-    /// 供 <see cref="AbyssMod.Patches.TextTranslator"/> 行内术语替换使用，
-    /// 使酒馆卡片效果描述中的技能名与角色技能界面保持一致中文术语。
-    /// </summary>
     public Dictionary<string, string> AbilityDescriptions { get; private set; } = [];
     public ConcurrentDictionary<string, Dictionary<string, string>> Novels { get; private set; } =
         new();
+
     public FontHelper Font => _font;
 
     public TranslationManager(TranslationCache cache, FontHelper font)
@@ -57,7 +61,23 @@ public class TranslationManager
                 })
                 .WrapToIl2Cpp()
         );
-        _ = LoadTranslationAsync();
+        _ = EnsureStaticTranslationsLoadedAsync();
+    }
+
+    public Task EnsureStaticTranslationsLoadedAsync()
+    {
+        lock (_loadLock)
+            return _loadTask ??= LoadTranslationAsync();
+    }
+
+    public void EnsureStaticTranslationsLoaded()
+    {
+        EnsureStaticTranslationsLoadedAsync().GetAwaiter().GetResult();
+    }
+
+    public Dictionary<string, string> GetTable(string type)
+    {
+        return _tables.TryGetValue(type, out var table) ? table : null;
     }
 
     public async Task LoadTranslationAsync()
@@ -67,85 +87,97 @@ public class TranslationManager
 
         await _cache.FetchManifestAsync();
 
+        var tasks = new Dictionary<string, Task<Dictionary<string, string>>>();
+        foreach (string type in TranslationPaths.EnumerateMasterDictTypes())
+            tasks[type] = _cache.LoadAsync(type);
+
+        foreach (
+            string legacy in new[]
+            {
+                TranslationPaths.Titles,
+                TranslationPaths.Descriptions,
+                TranslationPaths.AnotherName,
+                TranslationPaths.AbilityDescriptions,
+            }
+        )
+        {
+            if (!tasks.ContainsKey(legacy))
+                tasks[legacy] = _cache.LoadAsync(legacy);
+        }
+
+        await Task.WhenAll(tasks.Values);
+
+        foreach (var (type, task) in tasks)
+        {
+            if (task.Result != null)
+            {
+                _tables[type] = task.Result;
+                Logger.Info($"Translation loaded [{type}]. Total: {task.Result.Count}");
+            }
+            else
+            {
+                Logger.Warn($"Translation load failed [{type}]");
+                if (CriticalTypes.Contains(type))
+                    Toast.Warn("加载失败", $"翻译加载失败: {type}");
+            }
+        }
+
+        Names = GetTable(TranslationPaths.Names) ?? [];
+        Titles = GetTable(TranslationPaths.Titles) ?? [];
+        Descriptions = GetTable(TranslationPaths.Descriptions) ?? [];
+        AbilityDescriptions =
+            GetTable(TranslationPaths.AbilityDescriptions)
+            ?? GetTable("m_ability_details")
+            ?? [];
+
+        await _cache.SyncLegacyUiMiscAsync();
         await _cache.SyncAddOnFromCdnAsync();
         await _cache.SyncOtherFromCdnAsync();
         MachineTranslator.ReloadFromDisk();
 
-        // 作者类型：显式加载（含 CDN 哈希校验）
-        var nameTask        = _cache.LoadAsync(TranslationPaths.Names);
-        var titleTask       = _cache.LoadAsync(TranslationPaths.Titles);
-        var descTask        = _cache.LoadAsync(TranslationPaths.Descriptions);
-        var anotherNameTask = _cache.LoadAsync(TranslationPaths.AnotherName);
-        var abilityTask     = _cache.LoadAsync(TranslationPaths.AbilityDescriptions);
-        await Task.WhenAll(nameTask, titleTask, descTask, anotherNameTask, abilityTask);
+        await MergeLocalAddOnFallbackAsync();
+        AbilityTextMatcher.Rebuild(AbilityDescriptions);
+        TemplateTextMatcher.Rebuild(Texts, Titles, Descriptions);
+        GeneralTextPatch.RefreshAllVisibleText();
+    }
 
-        if (nameTask.Result != null)
-        {
-            Names = nameTask.Result;
-            Logger.Info($"Character names translation loaded. Total: {Names.Count}");
-        }
-        else
-        {
-            Logger.Warn("Character names translation load failed");
-            Toast.Warn("加载失败", "角色名称翻译加载失败");
-        }
-
-        if (titleTask.Result != null)
-        {
-            Titles = titleTask.Result;
-            Logger.Info($"Novel titles translation loaded. Total: {Titles.Count}");
-        }
-        else
-        {
-            Logger.Warn("Novel titles translation load failed");
-            Toast.Warn("加载失败", "剧情标题翻译加载失败");
-        }
-
-        if (descTask.Result != null)
-        {
-            Descriptions = descTask.Result;
-            Logger.Info($"Novel descriptions translation loaded. Total: {Descriptions.Count}");
-        }
-        else
-        {
-            Logger.Warn("Novel descriptions translation load failed");
-            Toast.Warn("加载失败", "剧情概括翻译加载失败");
-        }
-
-        // 保存 ability_descriptions 专属字典（供行内术语替换使用）
-        if (abilityTask.Result != null)
-            AbilityDescriptions = abilityTask.Result;
-
-        // 合并：作者类型先合并，本地自定义类型最后合并（本地优先）
+    private async Task MergeLocalAddOnFallbackAsync()
+    {
         var merged = new Dictionary<string, string>();
-        MergeInto(merged, anotherNameTask.Result, "another_name");
-        MergeInto(merged, abilityTask.Result, "ability_descriptions");
 
-        // 本地自定义类别：自动扫描 translations/* 目录，支持动态新增类别
+        void MergeTable(string type)
+        {
+            if (_tables.TryGetValue(type, out var table))
+                MergeInto(merged, table, type);
+        }
+
+        MergeTable(TranslationPaths.AnotherName);
+        MergeTable(TranslationPaths.AbilityDescriptions);
+        MergeTable("m_ability_details");
+        MergeTable("m_character_action_skills");
+        MergeTable("m_character_profiles");
+        MergeTable("m_tavern_character_cards");
+        MergeTable("m_nether_codes");
+        MergeTable("m_missions");
+
         var localCategories = TranslationPaths
             .EnumerateLocalCategories(_cache.CacheDir, Config.TranslationLanguage.Value)
+            .Where(cat => cat != TranslationPaths.Ui)
             .ToList();
 
         if (localCategories.Count > 0)
         {
-            var localTasks = localCategories
-                .Select(cat => _cache.LoadAsync(cat))
-                .ToList();
+            var localTasks = localCategories.Select(cat => _cache.LoadAsync(cat)).ToList();
             await Task.WhenAll(localTasks);
-
             for (int i = 0; i < localCategories.Count; i++)
-                MergeInto(merged, localTasks[i].Result, localCategories[i]);
+                MergeInto(merged, localTasks[i].Result, $"add-on/{localCategories[i]}");
         }
 
         Texts = merged;
-        AbilityTextMatcher.Rebuild(AbilityDescriptions);
-        TemplateTextMatcher.Rebuild(merged, Titles, Descriptions);
         Logger.Info(
-            $"Non-story text translation merged. Total: {Texts.Count} "
-                + $"(local categories: {localCategories.Count}, ability: {AbilityDescriptions.Count})"
+            $"Non-story text fallback merged. Total: {Texts.Count} "
+                + $"(local add-on categories: {localCategories.Count})"
         );
-
-        GeneralTextPatch.RefreshAllVisibleText();
     }
 
     private static void MergeInto(
@@ -154,16 +186,13 @@ public class TranslationManager
         string label
     )
     {
-        if (source == null)
-        {
-            Logger.Warn($"Text translation '{label}' load failed or empty");
+        if (source == null || source.Count == 0)
             return;
-        }
 
         foreach (var kv in source)
             target[kv.Key] = kv.Value;
 
-        Logger.Info($"Text translation '{label}' loaded. Total: {source.Count}");
+        Logger.Info($"Text fallback '{label}' merged. Total: {source.Count}");
     }
 
     public async Task GetNovelTranslationAsync(string novelId)

@@ -21,6 +21,7 @@ public static class TranslationPaths
     public const string AnotherName         = "another_name";
     public const string AbilityDescriptions = "ability_descriptions";
     public const string Novels              = "novels";
+    public const string UiTexts             = "ui_texts";
 
     // 本仓库自定义类型（作者 CDN 无此目录，不会被覆盖，靠本地文件兜底）
     public const string Items  = "items";
@@ -28,11 +29,17 @@ public static class TranslationPaths
     public const string Other  = "other";
 
     /// <summary>所有本地自定义类别的统一容器目录（translations/add-on/）。</summary>
-    public const string AddOn  = "add-on";
+    public const string AddOn = "add-on";
 
-    // ──────────────────────────────────────────────────
-    // 保留类型集合（由 TranslationManager 扫描时跳过的目录）
-    // ──────────────────────────────────────────────────
+    /// <summary>过渡期 legacy 兜底目录（translations/legacy/add-on/）。</summary>
+    public const string Legacy = "legacy";
+
+    public const string LegacyUiMisc = "ui_misc";
+
+    /// <summary>由 master_mapping.json dict_types 驱动，启动时由 MasterMapping.Load 填充。</summary>
+    public static IReadOnlyList<string> ContentTypes { get; private set; } = [];
+
+    public static void SetContentTypes(List<string> types) => ContentTypes = types;
 
     /// <summary>
     /// 作者/框架保留的顶层目录名称。
@@ -41,18 +48,27 @@ public static class TranslationPaths
     /// </summary>
     public static readonly HashSet<string> ReservedTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        Manifest, Names, Titles, Descriptions,
-        AnotherName, AbilityDescriptions,
-        Novels, Other, AddOn,
+        Manifest,
+        Names,
+        Titles,
+        Descriptions,
+        AnotherName,
+        AbilityDescriptions,
+        Novels,
+        Other,
+        AddOn,
+        Legacy,
+        UiTexts,
     };
+
+    /// <summary>CDN 扁平字典（m_* / names / ui_texts 等），缓存路径为 {type}/{language}.json。</summary>
+    public static bool IsCdnFlatType(string type) =>
+        ContentTypes.Contains(type) || ReservedTypes.Contains(type);
 
     // ──────────────────────────────────────────────────
     // URL / 路径构建
     // ──────────────────────────────────────────────────
 
-    /// <summary>
-    /// 构建远程资源 URL。未知自定义类型统一按 {type}/{language}.json 处理（不再抛出异常）。
-    /// </summary>
     public static string BuildRemoteUrl(string cdn, string type, string language, string id = null)
     {
         return type switch
@@ -63,34 +79,27 @@ public static class TranslationPaths
         };
     }
 
-    /// <summary>
-    /// 构建 add-on/{category}/ 远程 URL：<c>{cdn}/add-on/{category}/{language}.json</c>。
-    /// </summary>
     public static string BuildAddOnRemoteUrl(string cdn, string category, string language) =>
         $"{cdn.TrimEnd('/')}/{AddOn}/{category}/{language}.json";
 
-    /// <summary>
-    /// 构建 add-on/{category}/ 本地缓存路径。
-    /// </summary>
     public static string BuildAddOnCachePath(string cacheDir, string category, string language) =>
         Path.Combine(cacheDir, AddOn, category, $"{language}.json");
 
-    /// <summary>
-    /// 构建 other/{category}/ 远程 URL：<c>{cdn}/other/{category}/{language}.json</c>。
-    /// </summary>
+    public static string BuildLegacyAddOnRemoteUrl(string cdn, string category, string language) =>
+        $"{cdn.TrimEnd('/')}/{Legacy}/{AddOn}/{category}/{language}.json";
+
+    public static string BuildLegacyAddOnCachePath(
+        string cacheDir,
+        string category,
+        string language
+    ) => Path.Combine(cacheDir, Legacy, AddOn, category, $"{language}.json");
+
     public static string BuildOtherRemoteUrl(string cdn, string category, string language) =>
         $"{cdn.TrimEnd('/')}/{Other}/{category}/{language}.json";
 
-    /// <summary>
-    /// 构建 other/{category}/ 本地缓存路径。
-    /// </summary>
     public static string BuildOtherCachePath(string cacheDir, string category, string language) =>
         Path.Combine(cacheDir, Other, category, $"{language}.json");
 
-    /// <summary>
-    /// 构建本地缓存文件路径。
-    /// 本地自定义类别（不在 <see cref="ReservedTypes"/> 中）统一放在 <c>add-on/{type}/{language}.json</c>。
-    /// </summary>
     public static string BuildCachePath(string cacheDir, string type, string language, string id = null)
     {
         if (type == Novels && id != null)
@@ -98,21 +107,12 @@ public static class TranslationPaths
         if (type == Novels)
             throw new ArgumentException("Novel ID is required for novels type");
 
-        // 本地自定义类别放 add-on/ 子目录
-        if (!ReservedTypes.Contains(type))
+        if (!IsCdnFlatType(type))
             return Path.Combine(cacheDir, AddOn, type, $"{language}.json");
 
         return Path.Combine(cacheDir, type, $"{language}.json");
     }
 
-    // ──────────────────────────────────────────────────
-    // 本地自定义类别枚举（供 TranslationManager 扫描）
-    // ──────────────────────────────────────────────────
-
-    /// <summary>
-    /// 枚举 <c>translations/add-on/</c> 下所有本地自定义类别目录名。
-    /// 即：<paramref name="cacheDir"/>/add-on/ 下存在 &lt;language&gt;.json 的子目录。
-    /// </summary>
     public static IEnumerable<string> EnumerateLocalCategories(string cacheDir, string language)
     {
         var addOnDir = Path.Combine(cacheDir, AddOn);
@@ -127,9 +127,6 @@ public static class TranslationPaths
         }
     }
 
-    /// <summary>
-    /// 枚举 <c>translations/other/</c> 下已有语言文件的子类别目录名。
-    /// </summary>
     public static IEnumerable<string> EnumerateOtherCategories(string cacheDir, string language)
     {
         var otherDir = Path.Combine(cacheDir, Other);
@@ -143,4 +140,8 @@ public static class TranslationPaths
                 yield return Path.GetFileName(dir);
         }
     }
+
+    /// <summary>master_mapping dict_types 中尚未列入 ReservedTypes 的类型（用于增量加载）。</summary>
+    public static IEnumerable<string> EnumerateMasterDictTypes() =>
+        ContentTypes.Where(t => !string.Equals(t, Novels, StringComparison.OrdinalIgnoreCase));
 }

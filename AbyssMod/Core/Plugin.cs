@@ -49,6 +49,7 @@ public class Plugin : BasePlugin
         AbyssMod.Config.Initialize();
         Instance = AddComponent<Hotkey>();
 
+        MasterMapping.Load();
         Initialize();
         PatchManager.Initialize();
         Trans.Initialize();

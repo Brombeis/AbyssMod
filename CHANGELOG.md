@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-06-26
+
+### 新增 / Added
+
+- **MasterData 就地翻譯**：移植作者 `MasterDataTranslationPatch` + `master_mapping.json`，masterdata 寫入 cache 前翻譯酒館卡、任務、技能等欄位
+- **`m_*` 扁平 CDN 載入**：`TranslationPaths.ContentTypes` 由 mapping 驅動；`Manifest.GetFileHash` 支援動態 `m_*` hash
+- **`ui_texts` 查表**：`UiTextTranslator` + `OnEnable` Postfix，靜態 prefab UI 精準翻譯
+- **`legacy/add-on/ui_misc` 兜底**：保留 `GeneralTextPatch` + `RefreshVisibleText` + `MachineTranslator` 雙層架構
+
+### 變更 / Changed
+
+- **版本號 1.1.0**：需刪除舊 `cache/translations/` 後重新 sync
+- **`TranslationManager`**：新增 `GetTable()` / `EnsureStaticTranslationsLoaded()` 供 masterdata patch 使用
+
+---
+
 ## [1.0.8] - 2026-06-21
 
 ### 修復 / Fixed

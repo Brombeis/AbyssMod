@@ -169,6 +169,111 @@ namespace AbyssMod.Services
         }
 
         /// <summary>
+        /// 从 CDN 同步 <c>legacy/add-on/ui_misc</c> 兜底缓存（manifest.add_on.ui_misc）。
+        /// </summary>
+        public async Task SyncLegacyUiMiscAsync()
+        {
+            if (string.IsNullOrWhiteSpace(_cdn))
+                return;
+
+            const string category = TranslationPaths.LegacyUiMisc;
+            string cacheKey = $"{_language}/legacy/add-on/{category}";
+            string legacyCachePath = TranslationPaths.BuildLegacyAddOnCachePath(
+                _cacheDir,
+                category,
+                _language
+            );
+            string addOnCachePath = TranslationPaths.BuildAddOnCachePath(
+                _cacheDir,
+                category,
+                _language
+            );
+            string remoteUrl = TranslationPaths.BuildLegacyAddOnRemoteUrl(_cdn, category, _language);
+            string expectedHash = GetAddOnManifestHash(category);
+
+            var semaphore = _locks.GetOrAdd(cacheKey, _ => new SemaphoreSlim(1, 1));
+            await semaphore.WaitAsync();
+            try
+            {
+                if (expectedHash != null && File.Exists(legacyCachePath))
+                {
+                    string localHash = HashFile(legacyCachePath);
+                    if (localHash == expectedHash)
+                    {
+                        CopyLegacyToAddOnIfNewer(legacyCachePath, addOnCachePath);
+                        Logger.Info("legacy/add-on/ui_misc cache hit");
+                        return;
+                    }
+                }
+
+                Dictionary<string, string> remote;
+                try
+                {
+                    var response = await _client.GetAsync(remoteUrl);
+                    if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    {
+                        // 过渡期：legacy 路径不存在时回退 add-on/ui_misc
+                        remoteUrl = TranslationPaths.BuildAddOnRemoteUrl(_cdn, category, _language);
+                        response = await _client.GetAsync(remoteUrl);
+                    }
+
+                    if (!response.IsSuccessStatusCode)
+                        return;
+
+                    var json = await response.Content.ReadAsStringAsync();
+                    remote = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+                    if (remote == null || remote.Count == 0)
+                        return;
+                }
+                catch (Exception e)
+                {
+                    Logger.Warn($"legacy/add-on/{category} fetch failed: {e.Message}");
+                    return;
+                }
+
+                Dictionary<string, string> local = File.Exists(legacyCachePath)
+                    ? LoadFromFile(legacyCachePath) ?? new Dictionary<string, string>()
+                    : File.Exists(addOnCachePath)
+                        ? LoadFromFile(addOnCachePath) ?? new Dictionary<string, string>()
+                        : new Dictionary<string, string>();
+
+                var merged = new Dictionary<string, string>(local);
+                foreach (var kv in remote)
+                    merged[kv.Key] = kv.Value;
+
+                SaveToFile(legacyCachePath, merged);
+                SaveToFile(addOnCachePath, merged);
+                Logger.Info(
+                    $"legacy/add-on/{category} synced: +{remote.Count} remote, {merged.Count} total"
+                );
+            }
+            finally
+            {
+                semaphore.Release();
+                CleanupLocksIfNeeded();
+            }
+        }
+
+        private static void CopyLegacyToAddOnIfNewer(string legacyPath, string addOnPath)
+        {
+            if (!File.Exists(legacyPath))
+                return;
+
+            var legacy = LoadFromFile(legacyPath);
+            if (legacy == null || legacy.Count == 0)
+                return;
+
+            Dictionary<string, string> addOn = File.Exists(addOnPath)
+                ? LoadFromFile(addOnPath) ?? new Dictionary<string, string>()
+                : new Dictionary<string, string>();
+
+            var merged = new Dictionary<string, string>(addOn);
+            foreach (var kv in legacy)
+                merged[kv.Key] = kv.Value;
+            SaveToFile(addOnPath, merged);
+        }
+
+        /// <summary>
         /// 从 CDN 同步 <c>add-on/{category}/</c> 社群精翻缓存。
         /// 远程条目覆盖本地同 key；本地独有 key 保留。
         /// </summary>
@@ -196,6 +301,9 @@ namespace AbyssMod.Services
             set.Add(TranslationPaths.Items);
             set.Add(TranslationPaths.Ui);
             set.Add("dictionary");
+
+            set.Add(TranslationPaths.LegacyUiMisc);
+            set.Add("ui_misc");
 
             foreach (var cat in TranslationPaths.EnumerateLocalCategories(_cacheDir, _language))
                 set.Add(cat);
@@ -398,9 +506,9 @@ namespace AbyssMod.Services
             string cacheKey = id != null ? $"{_language}/{type}/{id}" : $"{_language}/{type}";
             string cachePath = TranslationPaths.BuildCachePath(_cacheDir, type, _language, id);
 
-            // 本地自定义类别（不在作者 CDN 中）直接读本地文件，避免每次 404 噪音
-            bool isLocalOnly = !TranslationPaths.ReservedTypes.Contains(type)
-                               && type != TranslationPaths.Novels;
+            // 本地自定义类别（不在 CDN 扁平字典中）直接读本地文件
+            bool isLocalOnly =
+                !TranslationPaths.IsCdnFlatType(type) && type != TranslationPaths.Novels;
             if (isLocalOnly)
             {
                 if (File.Exists(cachePath))
@@ -522,6 +630,19 @@ namespace AbyssMod.Services
         {
             if (_manifest == null)
                 return null;
+
+            if (type == TranslationPaths.Novels && id != null)
+            {
+                return _manifest.Novels != null
+                && _manifest.Novels.TryGetValue(id, out var novelHash)
+                    ? novelHash
+                    : null;
+            }
+
+            string dynamic = _manifest.GetFileHash(type);
+            if (!string.IsNullOrEmpty(dynamic))
+                return dynamic;
+
             return type switch
             {
                 TranslationPaths.Names => _manifest.Names,
@@ -529,10 +650,7 @@ namespace AbyssMod.Services
                 TranslationPaths.Descriptions => _manifest.Descriptions,
                 TranslationPaths.AnotherName => _manifest.AnotherName,
                 TranslationPaths.AbilityDescriptions => _manifest.AbilityDescriptions,
-                TranslationPaths.Novels when id != null => _manifest.Novels != null
-                && _manifest.Novels.TryGetValue(id, out var hash)
-                    ? hash
-                    : null,
+                TranslationPaths.UiTexts => _manifest.UiTexts,
                 _ => null,
             };
         }
