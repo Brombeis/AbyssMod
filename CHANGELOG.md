@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-06-23
+
+### 新增 / Added
+
+- **Masterdata 全量接线**：`master_mapping.json` 扩展至 **128 张**可翻译表（`dict_types` 129 项含 `names`/`ui_texts`），涵盖道具、武器、防具、设施、关卡、图鉴、酒馆、付费文案等
+- **就地翻译字段**：`MItems`、`MWeapons`、`MBuildings`、`MDungeons`、`MEnemies` 等表在 masterdata 写入 cache 前自动替换
+
+### 变更 / Changed
+
+- 首次安装或升级后请**删除** `BepInEx/cache/translations/` 以重新 sync 全部 `m_*` 字典
+
+### 备注
+
+- 新增表译文部分为 OpenCC 机翻，详见翻译仓库 `reports/machine_translated.md`
+- IL2CPP 类名无法解析的表会在日志中 `type not resolved` 并跳过（不影响启动）
+
+---
+
 ## [1.1.3] - 2026-06-26
 
 ### 修復 / Fixed
