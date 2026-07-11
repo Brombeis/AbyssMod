@@ -91,7 +91,7 @@ public static class GeneralTextPatch
                     continue;
 
                 string s = tmp.text;
-                if (string.IsNullOrEmpty(s) || !TextTranslator.HasKana(s))
+                if (string.IsNullOrEmpty(s) || !TextTranslator.HasJapanese(s))
                     continue;
 
                 string before = s;

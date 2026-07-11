@@ -80,4 +80,20 @@ public static class TextTranslator
         }
         return false;
     }
+
+    /// <summary>
+    /// \u542B\u65E5\u6587\uFF08\u5047\u540D\u6216\u6F22\u5B57\uFF09\u3002RefreshVisibleText \u7528\u5B83\u66FF\u4EE3 HasKana\uFF0C\u5426\u5219\u7EAF\u6F22\u5B57 UI
+    /// \u6807\u7B7E\uFF08\u65BD\u8A2D / \u4EA4\u6D41 / \u5A3C\u9928 \u7B49\uFF09\u4F1A\u88AB\u5468\u671F\u626B\u63CF\u6F0F\u6389\uFF0C\u5373\u4F7F\u5B57\u5178\u91CC\u5DF2\u6709\u8BD1\u6587\u3002
+    /// </summary>
+    public static bool HasJapanese(string s)
+    {
+        foreach (char c in s)
+        {
+            if ((c >= '\u3040' && c <= '\u30FF')      // hiragana + katakana
+                || (c >= '\u4E00' && c <= '\u9FFF')   // CJK unified ideographs (kanji)
+                || (c >= '\uFF66' && c <= '\uFF9F'))  // halfwidth katakana
+                return true;
+        }
+        return false;
+    }
 }
