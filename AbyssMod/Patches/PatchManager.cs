@@ -20,6 +20,8 @@ public static class PatchManager
         Harmony.CreateAndPatchAll(typeof(ItemPatch));
         Harmony.CreateAndPatchAll(typeof(GeneralTextPatch));
         Harmony.CreateAndPatchAll(typeof(MasterDataTranslationPatch));
+        Harmony.CreateAndPatchAll(typeof(FontSpacePatch));
+        Harmony.CreateAndPatchAll(typeof(TutorialImagePatch));
 #if DEBUG
         Harmony.CreateAndPatchAll(typeof(DebugPatch));
 #endif

@@ -52,15 +52,20 @@ public class TranslationManager
 
     public void Initialize()
     {
-        Plugin.Instance.StartCoroutine(
-            _font
-                .LoadAsync(() =>
-                {
-                    Logger.Info($"Font loaded: {_font.Asset.name}");
-                    TMP_Settings.fallbackFontAssets.Add(_font.Asset);
-                })
-                .WrapToIl2Cpp()
-        );
+        // _font is null when FontBundlePath is empty (English fork uses the native
+        // font — no Chinese TMP fallback needed).
+        if (_font != null)
+        {
+            Plugin.Instance.StartCoroutine(
+                _font
+                    .LoadAsync(() =>
+                    {
+                        Logger.Info($"Font loaded: {_font.Asset.name}");
+                        TMP_Settings.fallbackFontAssets.Add(_font.Asset);
+                    })
+                    .WrapToIl2Cpp()
+            );
+        }
         _ = EnsureStaticTranslationsLoadedAsync();
     }
 

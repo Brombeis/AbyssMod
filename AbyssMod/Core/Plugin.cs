@@ -83,9 +83,14 @@ public class Plugin : BasePlugin
         );
 
         string path = AbyssMod.Config.FontBundlePath.Value;
-        string resolvedPath = Path.IsPathRooted(path) ? path : Path.Combine(Paths.PluginPath, path);
-
-        var font = new FontHelper(resolvedPath);
+        FontHelper font = null;
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            string resolvedPath = Path.IsPathRooted(path)
+                ? path
+                : Path.Combine(Paths.PluginPath, path);
+            font = new FontHelper(resolvedPath);
+        }
         Trans = new TranslationManager(cache, font);
 
         // 机翻数据归入 translations/other 类型目录（作者 CDN 无此类型，不会被覆盖）

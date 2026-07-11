@@ -24,9 +24,18 @@
       https://nuget.samboy.dev/v3/index.json
     </RestoreAdditionalProjectSources>
     <RootNamespace>AbyssMod</RootNamespace>
-    <BaseOutputPath>$(GameDir)\BepInEx\plugins\$(Product)</BaseOutputPath>
-    <ProduceReferenceAssembly>True</ProduceReferenceAssembly>
+    <!-- Build artifacts stay in the project-local bin/ (outside BepInEx's plugin
+         scan path). A post-build step deploys only AbyssMod.dll into the game. -->
+    <ProduceReferenceAssembly>False</ProduceReferenceAssembly>
   </PropertyGroup>
+
+  <!-- Deploy the built DLL straight to plugins/AbyssMod/ (matching the release
+       layout: AbyssMod.dll next to Utility.dll). Avoids a nested Release/ copy
+       that BepInEx would load a second time (duplicate GUID conflict). -->
+  <Target Name="DeployToGame" AfterTargets="Build" Condition="'$(GameDir)' != ''">
+    <Copy SourceFiles="$(TargetPath)"
+          DestinationFolder="$(GameDir)\BepInEx\plugins\$(Product)" />
+  </Target>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DebugType>none</DebugType>

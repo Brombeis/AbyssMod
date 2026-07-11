@@ -115,13 +115,13 @@ namespace AbyssMod
             TranslationCDN = Plugin.ConfigFile.Bind(
                 "Translation",
                 "CDN",
-                "https://raw.githubusercontent.com/s88037zz/dotabyss-translation/main/translations",
+                "https://raw.githubusercontent.com/Brombeis/dotabyss-translation/main/translations",
                 "翻译加载的CDN"
             );
             TranslationLanguage = Plugin.ConfigFile.Bind(
                 "Translation",
                 "Language",
-                "zh_Hant",
+                "en",
                 "翻译语言，取值范围：[zh_Hans, zh_Hant]。机翻也会依此输出简体或繁体"
             );
             TranslationCryptoTag = Plugin.ConfigFile.Bind(
@@ -142,7 +142,7 @@ namespace AbyssMod
             FontBundlePath = Plugin.ConfigFile.Bind(
                 "Translation.Font",
                 "AssetBundlePath",
-                $"{MyPluginInfo.PLUGIN_GUID}/fonts/ttcuyuanj",
+                "",
                 "TMP字体AssetBundle的路径，默认相对于插件目录，也可使用绝对路径"
             );
             #endregion
