@@ -7,7 +7,6 @@
         2. 備選：直接修改下方 <GameDir> 的值（僅限本機使用，不要提交到 git）
     -->
     <GameDir Condition="'$(ABYSS_GAME_DIR)' != ''">$(ABYSS_GAME_DIR)</GameDir>
-    <GameDir Condition="'$(ABYSS_GAME_DIR)' == ''">x:\DMM\dotabyss_cl</GameDir>
     <Authors>Jitsu</Authors>
   </PropertyGroup>
 
