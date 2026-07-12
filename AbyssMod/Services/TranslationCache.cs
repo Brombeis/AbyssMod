@@ -562,22 +562,8 @@ namespace AbyssMod.Services
                 var data = await GetAsync<Dictionary<string, string>>(remoteUrl);
                 if (data != null)
                 {
-                    // ability_descriptions 尚无 manifest 哈希，且社群 repo 常领先 CDN；
-                    // 合并而非覆盖，保留本机已有、远端尚未发布的条目。
-                    if (type == TranslationPaths.AbilityDescriptions && File.Exists(cachePath))
-                    {
-                        var local = LoadFromFile(cachePath) ?? new Dictionary<string, string>();
-                        int remoteCount = data.Count;
-                        var merged = new Dictionary<string, string>(local);
-                        foreach (var kv in data)
-                            merged[kv.Key] = kv.Value;
-                        data = merged;
-                        Logger.Info(
-                            $"ability_descriptions merged: {data.Count} total "
-                                + $"(remote {remoteCount}, +{data.Count - remoteCount} local-only kept)"
-                        );
-                    }
-
+                    // All types (ability_descriptions included) overwrite the cache with
+                    // the remote copy when the manifest hash says it changed.
                     SaveToFile(cachePath, data);
                 }
                 else
