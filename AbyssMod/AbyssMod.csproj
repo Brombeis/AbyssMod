@@ -29,12 +29,14 @@
     <ProduceReferenceAssembly>False</ProduceReferenceAssembly>
   </PropertyGroup>
 
-  <!-- Deploy the built DLL straight to plugins/AbyssMod/ (matching the release
-       layout: AbyssMod.dll next to Utility.dll). Avoids a nested Release/ copy
-       that BepInEx would load a second time (duplicate GUID conflict). -->
+  <!-- Deploy the built DLL (+ Utility.dll) straight to plugins/AbyssMod/ (matching
+       the release layout: AbyssMod.dll next to Utility.dll). -->
   <Target Name="DeployToGame" AfterTargets="Build" Condition="'$(GameDir)' != ''">
     <Copy SourceFiles="$(TargetPath)"
           DestinationFolder="$(GameDir)\BepInEx\plugins\$(Product)" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\vendor\Utility.dll"
+          DestinationFolder="$(GameDir)\BepInEx\plugins\$(Product)"
+          Condition="Exists('$(MSBuildThisFileDirectory)..\vendor\Utility.dll')" />
   </Target>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -53,8 +55,8 @@
       <Private>false</Private>
     </Reference>
     <Reference Include="Utility">
-      <HintPath>$(GameDir)\BepInEx\plugins\AbyssMod\Utility.dll</HintPath>
-      <Private>false</Private>
+      <HintPath>$(MSBuildThisFileDirectory)..\vendor\Utility.dll</HintPath>
+      <Private>true</Private>
     </Reference>
   </ItemGroup>
 
