@@ -111,6 +111,8 @@ StyleCopReport.xml
 *.rsp
 # but not Directory.Build.rsp, as it configures directory-level build defaults
 !Directory.Build.rsp
+
+Directory.Build.props
 *.sbr
 *.tlb
 *.tli

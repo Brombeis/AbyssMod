@@ -2,9 +2,10 @@
   <PropertyGroup>
     <!--
       設定遊戲根目錄路徑：
-        1. 推薦：設定環境變數 ABYSS_GAME_DIR 指向你的遊戲安裝目錄（與 .exe 同層）
+        1. 推薦：複製 Directory.Build.props.example 為 Directory.Build.props
+           （已加入 .gitignore，不會被提交），改成自己的路徑
+        2. 或者：設定環境變數 ABYSS_GAME_DIR（優先於 Directory.Build.props）
            例如：set ABYSS_GAME_DIR=D:\Games\ドットアビス
-        2. 備選：直接修改下方 <GameDir> 的值（僅限本機使用，不要提交到 git）
     -->
     <GameDir Condition="'$(ABYSS_GAME_DIR)' != ''">$(ABYSS_GAME_DIR)</GameDir>
     <Authors>Jitsu</Authors>

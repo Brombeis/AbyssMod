@@ -1,0 +1,16 @@
+<Project>
+  <!--
+    Copy this file to Directory.Build.props (gitignored, machine-local) and
+    set GameDir to your own game install path (the folder containing the
+    .exe and BepInEx/).
+
+    Directory.Build.props.example (this file) is checked into git as a
+    template only and is not read by MSBuild.
+
+    Alternative: set the ABYSS_GAME_DIR environment variable instead — it
+    takes priority over this file's GameDir (see AbyssMod.csproj).
+  -->
+  <PropertyGroup>
+    <GameDir>C:\Path\To\dotabyss_x_cl</GameDir>
+  </PropertyGroup>
+</Project>
