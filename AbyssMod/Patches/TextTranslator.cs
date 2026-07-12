@@ -40,6 +40,9 @@ public static class TextTranslator
             if (abilityContext && AbilityTextMatcher.TryTranslate(text, out string abilityFirst))
                 return abilityFirst;
 
+            if (UiRegexMatcher.TryTranslate(text, out string uiRegexResult))
+                return uiRegexResult;
+
             if (texts != null && texts.TryGetValue(text, out string translated))
                 return translated;
 

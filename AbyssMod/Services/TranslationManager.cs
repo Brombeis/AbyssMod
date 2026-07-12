@@ -142,6 +142,7 @@ public class TranslationManager
 
         await MergeLocalAddOnFallbackAsync();
         AbilityTextMatcher.Rebuild(AbilityDescriptions);
+        UiRegexMatcher.Rebuild(Texts);
         TemplateTextMatcher.Rebuild(Texts, Titles, Descriptions);
         GeneralTextPatch.RefreshAllVisibleText();
     }
