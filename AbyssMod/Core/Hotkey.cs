@@ -15,7 +15,7 @@ public class Hotkey : MonoBehaviour
     private const float DebounceInterval = 0.15f;
 
     // 周期扫描翻译走 SetText 的界面（底部导航等无法被 set_text hook 捕获的文本）
-    private const float RefreshInterval = 0.5f;
+    private const float RefreshInterval = 0.25f;
     private float _lastRefreshTime;
 
     private readonly Dictionary<KeyCode, float> _lastPressTime = new();
