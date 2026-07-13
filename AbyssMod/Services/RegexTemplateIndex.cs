@@ -44,7 +44,8 @@ public sealed class RegexTemplateIndex
             }
 
             string norm = Normalize(kv.Key);
-            _exactNorm.TryAdd(norm, kv.Value);
+            if (!_exactNorm.TryAdd(norm, kv.Value))
+                Logger.Warn($"RegexTemplateIndex: duplicate normalized key ignored: {kv.Key}");
 
             var slots = Slot.Matches(norm);
             if (slots.Count == 0)
@@ -69,8 +70,9 @@ public sealed class RegexTemplateIndex
             {
                 rx = new Regex(sb.ToString(), RegexOptions.Singleline);
             }
-            catch
+            catch (Exception ex)
             {
+                Logger.Warn($"RegexTemplateIndex: malformed template skipped: {kv.Key} ({ex.Message})");
                 continue; // malformed template → skip rather than crash Rebuild
             }
 
