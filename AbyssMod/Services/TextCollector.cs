@@ -54,9 +54,12 @@ public static class TextCollector
                 if (!string.IsNullOrEmpty(dir))
                     Directory.CreateDirectory(dir);
 
-                var dict = new Dictionary<string, string>();
+                var dict = LoadExisting(path);
                 foreach (var key in set)
-                    dict[key] = string.Empty;
+                {
+                    if (!dict.ContainsKey(key))
+                        dict[key] = string.Empty;
+                }
 
                 File.WriteAllText(path, JsonSerializer.Serialize(dict, JsonOptions), Utf8);
             }
@@ -65,5 +68,24 @@ public static class TextCollector
                 // 收集失败不应影响游戏运行
             }
         }
+    }
+
+    private static Dictionary<string, string> LoadExisting(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                var json = File.ReadAllText(path, Utf8);
+                var existing = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+                if (existing != null)
+                    return existing;
+            }
+        }
+        catch
+        {
+            
+        }
+        return new Dictionary<string, string>();
     }
 }
