@@ -31,6 +31,9 @@ public class Hotkey : MonoBehaviour
             Logger.Info("Config reloaded");
         }
 
+        if (Input.GetKeyDown(KeyCode.F11) && CanTrigger(KeyCode.F11))
+            _ = Plugin.Trans.ReloadAsync();
+
         if (Config.Translation.Value && Time.unscaledTime - _lastRefreshTime >= RefreshInterval)
         {
             _lastRefreshTime = Time.unscaledTime;

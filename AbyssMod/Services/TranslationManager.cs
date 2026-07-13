@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using AbyssMod;
 using AbyssMod.Patches;
+using BepInEx;
 using BepInEx.Unity.IL2CPP.Utils.Collections;
 using TMPro;
 using Utility.Fonts;
@@ -78,6 +81,33 @@ public class TranslationManager
     public void EnsureStaticTranslationsLoaded()
     {
         EnsureStaticTranslationsLoadedAsync().GetAwaiter().GetResult();
+    }
+
+    private volatile bool _reloading;
+
+    public async Task ReloadAsync()
+    {
+        if (_reloading)
+        {
+            Logger.Warn("Translation reload already in progress, ignoring.");
+            return;
+        }
+        _reloading = true;
+        try
+        {
+            Logger.Info("Reloading translations...");
+            await LoadTranslationAsync();
+            Toast.Success("AbyssMod", "Translations reloaded");
+        }
+        catch (Exception e)
+        {
+            Logger.Warn($"Translation reload failed: {e.Message}");
+            Toast.Warn("AbyssMod", $"Reload failed: {e.Message}");
+        }
+        finally
+        {
+            _reloading = false;
+        }
     }
 
     public Dictionary<string, string> GetTable(string type)
@@ -195,11 +225,50 @@ public class TranslationManager
         MergeTable(TranslationPaths.Names, masterKeys);
         MergeTable(TranslationPaths.UiTexts, masterKeys);
 
+        MergeDumpFallback(merged);
+
         Texts = merged;
         Logger.Info(
             $"Non-story text fallback merged. Total: {Texts.Count} "
                 + $"(add-on: {localCategories.Count}, m_* keys: {masterKeys.Count})"
         );
+    }
+
+    private static void MergeDumpFallback(Dictionary<string, string> target)
+    {
+        var dumpDir = Path.Combine(Paths.PluginPath, MyPluginInfo.PLUGIN_GUID, "dump");
+        if (!Directory.Exists(dumpDir))
+            return;
+
+        int added = 0;
+        foreach (var path in Directory.GetFiles(dumpDir, "*_raw.json"))
+        {
+            Dictionary<string, string> dump;
+            try
+            {
+                dump = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(path));
+            }
+            catch (Exception e)
+            {
+                Logger.Warn($"Dump fallback: unreadable file skipped: {Path.GetFileName(path)} ({e.Message})");
+                continue;
+            }
+            if (dump == null)
+                continue;
+
+            foreach (var kv in dump)
+            {
+                if (string.IsNullOrEmpty(kv.Value))
+                    continue; // still untranslated
+                if (target.ContainsKey(kv.Key))
+                    continue; // official dictionary wins
+                target[kv.Key] = kv.Value;
+                added++;
+            }
+        }
+
+        if (added > 0)
+            Logger.Info($"Dump fallback merged. Added: {added}");
     }
 
     private HashSet<string> BuildMasterDataKeySet()
@@ -232,6 +301,10 @@ public class TranslationManager
         {
             if (skipKeys != null && skipKeys.Contains(kv.Key))
                 continue;
+            if (target.TryGetValue(kv.Key, out var existing) && existing != kv.Value)
+                Logger.Warn(
+                    $"Text fallback '{label}': key already present with a different value, overwriting: {kv.Key}"
+                );
             target[kv.Key] = kv.Value;
             merged++;
         }
