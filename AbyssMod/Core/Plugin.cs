@@ -56,7 +56,7 @@ public class Plugin : BasePlugin
 
         Toast.Success(
             MyPluginInfo.PLUGIN_NAME,
-            $"Mod 加载成功，版本: {MyPluginInfo.PLUGIN_VERSION}"
+            $"Loaded successfully — version: {MyPluginInfo.PLUGIN_VERSION}"
         );
     }
 

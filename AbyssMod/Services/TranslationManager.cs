@@ -153,7 +153,7 @@ public class TranslationManager
             {
                 Logger.Warn($"Translation load failed [{type}]");
                 if (CriticalTypes.Contains(type))
-                    Toast.Warn("加载失败", $"翻译加载失败: {type}");
+                    Toast.Warn("Load failed", $"Translation load failed: {type}");
             }
         }
 
@@ -338,7 +338,7 @@ public class TranslationManager
             else
             {
                 Logger.Warn($"Translations loaded failed: {novelId}");
-                Toast.Warn("加载失败", $"剧本ID: {novelId}");
+                Toast.Warn("Load failed", $"Scenario ID: {novelId}");
             }
             tcs.SetResult();
         }
