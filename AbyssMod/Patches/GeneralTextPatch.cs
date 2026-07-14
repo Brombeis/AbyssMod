@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AbyssMod.Services;
 using HarmonyLib;
 using Project;
@@ -45,9 +46,13 @@ public static class GeneralTextPatch
 
         try
         {
-            string translated = UiTextTranslator.Translate(text, text.text);
-            if (!string.Equals(translated, text.text, StringComparison.Ordinal))
+            string original = text.text;
+            string translated = UiTextTranslator.Translate(text, original);
+            if (!string.Equals(translated, original, StringComparison.Ordinal))
             {
+                if (TextTranslator.HasJapanese(original))
+                    RegisterOriginalJp(text, original);
+
                 _inTranslation = true;
                 try
                 {
@@ -72,6 +77,46 @@ public static class GeneralTextPatch
     // 底部导航等走 SetText 的界面，改由 RefreshVisibleText() 周期扫描 + m_text 直写翻译。
     // ──────────────────────────────────────────────────
 
+    // Maps TMP_Text instanceID → original JP text, so F11 reload can re-translate
+    // already-translated elements (which no longer contain Japanese and are skipped by RefreshVisibleText).
+    private static readonly Dictionary<int, string> _originalJp = new();
+
+    private static void RegisterOriginalJp(TMP_Text tmp, string jp)
+    {
+        if (tmp == null || string.IsNullOrEmpty(jp)) return;
+        _originalJp[tmp.GetInstanceID()] = jp;
+    }
+
+    /// <summary>
+    /// Re-applies current translations to all elements in the JP registry.
+    /// Called after F11 reload so already-translated text gets updated too.
+    /// </summary>
+    public static void ReApplyFromRegistry()
+    {
+        if (!Config.Translation.Value) return;
+
+        var all = UnityEngine.Object.FindObjectsOfType<TMP_Text>(true);
+        var alive = new Dictionary<int, TMP_Text>(all.Length);
+        foreach (var tmp in all)
+            if (tmp != null) alive[tmp.GetInstanceID()] = tmp;
+
+        foreach (var (id, jp) in _originalJp)
+        {
+            if (!alive.TryGetValue(id, out var tmp))
+                continue;
+
+            string translated = jp;
+            ApplyTranslation(ref translated, tmp);
+
+            if (string.Equals(translated, tmp.text, StringComparison.Ordinal))
+                continue;
+
+            _inTranslation = true;
+            try { TmpTextHelper.TrySetTextDirect(tmp, translated); }
+            finally { _inTranslation = false; }
+        }
+    }
+
     /// <summary>
     /// 周期性扫描当前场景的 TMP 文本，翻译未命中条目。
     /// 经 m_text 直写（TmpTextHelper），不调用 SetText，避免递归崩溃。
@@ -93,6 +138,8 @@ public static class GeneralTextPatch
                 string s = tmp.text;
                 if (string.IsNullOrEmpty(s) || !TextTranslator.HasJapanese(s))
                     continue;
+
+                RegisterOriginalJp(tmp, s);
 
                 string before = s;
                 ApplyTranslation(ref s, tmp);
@@ -133,6 +180,10 @@ public static class GeneralTextPatch
         _inTranslation = true;
         try
         {
+            // Register before translation so we keep the original JP for F11 re-apply
+            if (instance != null && TextTranslator.HasJapanese(s))
+                RegisterOriginalJp(instance, s);
+
             // ui_texts 精准查表（作者逻辑）
             if (instance != null)
             {

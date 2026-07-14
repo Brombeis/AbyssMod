@@ -175,6 +175,7 @@ public class TranslationManager
         UiRegexMatcher.Rebuild(Texts);
         TemplateTextMatcher.Rebuild(Texts, Titles, Descriptions);
         GeneralTextPatch.RefreshAllVisibleText();
+        GeneralTextPatch.ReApplyFromRegistry();
     }
 
     private async Task MergeLocalAddOnFallbackAsync()
