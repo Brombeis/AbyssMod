@@ -55,13 +55,21 @@ public static class TextCollector
                     Directory.CreateDirectory(dir);
 
                 var dict = LoadExisting(path);
+                // If the file exists but is unreadable, abort rather than clobber translations.
+                if (dict == null)
+                    return;
+
                 foreach (var key in set)
                 {
                     if (!dict.ContainsKey(key))
                         dict[key] = string.Empty;
                 }
 
-                File.WriteAllText(path, JsonSerializer.Serialize(dict, JsonOptions), Utf8);
+                // Write to a temp file first, then replace atomically so a crash
+                // mid-write can never corrupt or empty the real dump file.
+                var tmp = path + ".tmp";
+                File.WriteAllText(tmp, JsonSerializer.Serialize(dict, JsonOptions), Utf8);
+                File.Move(tmp, path, overwrite: true);
             }
             catch
             {
@@ -70,22 +78,22 @@ public static class TextCollector
         }
     }
 
-    private static Dictionary<string, string> LoadExisting(string path)
+    // Returns null if the file exists but cannot be read/parsed, to distinguish
+    // "file missing" (safe to create) from "file unreadable" (abort write, preserve data).
+    private static Dictionary<string, string>? LoadExisting(string path)
     {
+        if (!File.Exists(path))
+            return new Dictionary<string, string>();
+
         try
         {
-            if (File.Exists(path))
-            {
-                var json = File.ReadAllText(path, Utf8);
-                var existing = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
-                if (existing != null)
-                    return existing;
-            }
+            var json = File.ReadAllText(path, Utf8);
+            return JsonSerializer.Deserialize<Dictionary<string, string>>(json)
+                   ?? new Dictionary<string, string>();
         }
         catch
         {
-            
+            return null;
         }
-        return new Dictionary<string, string>();
     }
 }
