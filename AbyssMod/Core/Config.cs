@@ -83,25 +83,25 @@ namespace AbyssMod
                 "General",
                 "DynamicMosaic",
                 false,
-                "是否启用游戏内动态马赛克"
+                "Enable the game's dynamic mosaic censoring."
             );
             SoundCaution = Plugin.ConfigFile.Bind(
                 "General",
                 "SoundCaution",
                 false,
-                "是否启用进入游戏时的音量提醒弹窗"
+                "Show the volume warning popup on game start."
             );
             VoiceInterruption = Plugin.ConfigFile.Bind(
                 "General",
                 "VoiceInterruption",
                 false,
-                "剧情中播放下一段无声文本时是否中断当前角色语音"
+                "Interrupt the current voice line when the next silent text line plays during a story scene."
             );
             TitleMovie = Plugin.ConfigFile.Bind(
                 "General",
                 "TitleMovie",
                 true,
-                "是否开启进入游戏时的标题动画"
+                "Show the title animation on game startup."
             );
             #endregion
 
@@ -110,31 +110,31 @@ namespace AbyssMod
                 "Translation",
                 "Enabled",
                 true,
-                "是否开启游戏内剧情翻译"
+                "Enable in-game translation."
             );
             TranslationCDN = Plugin.ConfigFile.Bind(
                 "Translation",
                 "CDN",
                 "https://raw.githubusercontent.com/Brombeis/dotabyss-translation/main/translations",
-                "翻译加载的CDN"
+                "URL of the translation CDN."
             );
             TranslationLanguage = Plugin.ConfigFile.Bind(
                 "Translation",
                 "Language",
                 "en",
-                "翻译语言，取值范围：[zh_Hans, zh_Hant]。机翻也会依此输出简体或繁体"
+                "Translation language code."
             );
             TranslationCryptoTag = Plugin.ConfigFile.Bind(
                 "Translation.Crypto",
                 "Tag",
                 "ENC:",
-                "翻译文本加密标签（可选）"
+                "Prefix tag that marks an encrypted translation value."
             );
             TranslationCryptoKey = Plugin.ConfigFile.Bind(
                 "Translation.Crypto",
                 "Key",
                 "woshitonghuadawang",
-                "翻译文本解密密钥（可选）"
+                "Decryption key for encrypted translation values."
             );
             #endregion
 
@@ -143,7 +143,7 @@ namespace AbyssMod
                 "Translation.Font",
                 "AssetBundlePath",
                 "",
-                "TMP字体AssetBundle的路径，默认相对于插件目录，也可使用绝对路径"
+                "Path to a TMP font AssetBundle. Leave empty to use the game's native font (recommended for English). Can be an absolute path or relative to the BepInEx/plugins folder."
             );
             #endregion
 
@@ -152,19 +152,19 @@ namespace AbyssMod
                 "MachineTranslation",
                 "ApiKey",
                 "",
-                "API 密钥（Engine=claude 时填入 Anthropic API Key；Engine=openai 且使用云端 OpenAI 时填入 OpenAI API Key）。Ollama 等本地服务留空即可"
+                "API key for cloud translation services. Engine=claude: Anthropic API key. Engine=openai: OpenAI API key. Leave empty for local services such as Ollama."
             );
             CollectText = Plugin.ConfigFile.Bind(
                 "Collector",
                 "CollectText",
                 true,
-                "是否收集游戏内出现的原文（道具说明等）到 dump 目录，用于建立翻译数据。默认开启，写盘开销极小，可持续为社区贡献覆盖"
+                "Collect untranslated Japanese strings encountered at runtime and write them to the dump/ folder. Useful for contributing new translations — the disk overhead is negligible."
             );
             ClassifyText = Plugin.ConfigFile.Bind(
                 "Collector",
                 "ClassifyText",
                 true,
-                "是否启用启发式文本分类器，将通用 UI 文本自动归入 equipment_effect/facility/bar/mission/materials/abyss_code/dialogue/system/ui_misc 子类别，便于分类校对。关闭时全部归入 ui_misc"
+                "Auto-classify collected strings into subcategories (equipment_effect, facility, bar, mission, materials, abyss_code, dialogue, system, ui_misc) rather than lumping everything into ui_misc."
             );
             #endregion
 
@@ -173,31 +173,31 @@ namespace AbyssMod
                 "MachineTranslation",
                 "Enabled",
                 false,
-                "是否启用机翻预处理：平时收集字典未命中的日文，启动时后台批量调用本地翻译引擎翻译并缓存（非实时，需自行运行翻译服务，如 ollama）"
+                "Enable machine translation pre-processing. Untranslated strings are batched and sent to the configured engine in the background, then cached locally. Requires a running translation service (e.g. Ollama) unless using a cloud API."
             );
             MTEngine = Plugin.ConfigFile.Bind(
                 "MachineTranslation",
                 "Engine",
                 "openai",
-                "翻译引擎类型，可选：openai（OpenAI兼容，如 LM Studio）、ollama、sugoi、libre"
+                "Translation engine. Options: openai (also compatible with LM Studio / Ollama), sugoi, libre, claude."
             );
             MTEndpoint = Plugin.ConfigFile.Bind(
                 "MachineTranslation",
                 "Endpoint",
                 "http://127.0.0.1:11434/v1/chat/completions",
-                "本地翻译服务的完整 API 地址。ollama(OpenAI兼容)默认 http://127.0.0.1:11434/v1/chat/completions；sugoi 通常 http://127.0.0.1:14366/；libre 通常 http://127.0.0.1:5000/translate"
+                "Full API endpoint URL for the translation service. openai/ollama default: http://127.0.0.1:11434/v1/chat/completions — sugoi: http://127.0.0.1:14366/ — libre: http://127.0.0.1:5000/translate"
             );
             MTModel = Plugin.ConfigFile.Bind(
                 "MachineTranslation",
                 "Model",
                 "qwen2.5:3b",
-                "模型名称（openai/ollama 引擎使用），如 qwen2.5:3b（质量更好可换 qwen2.5:7b）。sugoi/libre 可留空"
+                "Model name used by the openai/ollama engine. Examples: qwen2.5:3b (fast), qwen2.5:7b (better quality). Ignored for sugoi and libre."
             );
             MTTimeout = Plugin.ConfigFile.Bind(
                 "MachineTranslation",
                 "TimeoutSeconds",
                 30,
-                "单次翻译请求超时秒数"
+                "Timeout in seconds for a single translation request."
             );
             #endregion
         }
