@@ -34,6 +34,8 @@ public class TranslationManager
     private readonly ConcurrentDictionary<string, Task> _loadingNovels = new();
     private readonly Dictionary<string, Dictionary<string, string>> _tables = new();
 
+    private Dictionary<string, string> _keySource = [];
+
     public Dictionary<string, string> Names { get; private set; } = [];
     public Dictionary<string, string> Titles { get; private set; } = [];
     public Dictionary<string, string> Descriptions { get; private set; } = [];
@@ -172,7 +174,7 @@ public class TranslationManager
 
         await MergeLocalAddOnFallbackAsync();
         AbilityTextMatcher.Rebuild(AbilityDescriptions);
-        UiRegexMatcher.Rebuild(Texts);
+        UiRegexMatcher.Rebuild(Texts, _keySource);
         TemplateTextMatcher.Rebuild(Texts, Titles, Descriptions);
         GeneralTextPatch.RefreshAllVisibleText();
         GeneralTextPatch.ReApplyFromRegistry();
@@ -181,12 +183,18 @@ public class TranslationManager
     private async Task MergeLocalAddOnFallbackAsync()
     {
         var merged = new Dictionary<string, string>();
+        _keySource = new Dictionary<string, string>(); // key → file path, for duplicate warnings
         var masterKeys = BuildMasterDataKeySet();
+
+        var language = Config.TranslationLanguage.Value;
 
         void MergeTable(string type, ISet<string> skipKeys = null)
         {
             if (_tables.TryGetValue(type, out var table))
-                MergeInto(merged, table, type, skipKeys);
+            {
+                string filePath = TranslationPaths.BuildCachePath(_cache.CacheDir, type, language);
+                MergeInto(merged, table, type, skipKeys, _keySource, filePath);
+            }
         }
 
         // 1. legacy 底稿（后层 m_* 会覆盖同 key）
@@ -195,7 +203,6 @@ public class TranslationManager
         MergeTable(TranslationPaths.AnotherName);
         MergeTable(TranslationPaths.AbilityDescriptions);
 
-        var language = Config.TranslationLanguage.Value;
         var localCategories = TranslationPaths
             .EnumerateLocalCategories(_cache.CacheDir, language)
             .Where(cat => cat != TranslationPaths.Ui)
@@ -207,12 +214,10 @@ public class TranslationManager
             var localTasks = localCategories.Select(cat => _cache.LoadAsync(cat)).ToList();
             await Task.WhenAll(localTasks);
             for (int i = 0; i < localCategories.Count; i++)
-                MergeInto(
-                    merged,
-                    localTasks[i].Result,
-                    $"add-on/{localCategories[i]}",
-                    masterKeys
-                );
+            {
+                string filePath = TranslationPaths.BuildCachePath(_cache.CacheDir, localCategories[i], language);
+                MergeInto(merged, localTasks[i].Result, $"add-on/{localCategories[i]}", masterKeys, _keySource, filePath);
+            }
         }
 
         // 3. 全部 m_* 权威层（始终覆盖 legacy / add-on）
@@ -291,7 +296,9 @@ public class TranslationManager
         Dictionary<string, string> target,
         Dictionary<string, string> source,
         string label,
-        ISet<string> skipKeys = null
+        ISet<string> skipKeys = null,
+        Dictionary<string, string> keySource = null,
+        string filePath = null
     )
     {
         if (source == null || source.Count == 0)
@@ -307,6 +314,8 @@ public class TranslationManager
                     $"Text fallback '{label}': key already present with a different value, overwriting: {kv.Key}"
                 );
             target[kv.Key] = kv.Value;
+            if (keySource != null && filePath != null)
+                keySource[kv.Key] = filePath;
             merged++;
         }
 

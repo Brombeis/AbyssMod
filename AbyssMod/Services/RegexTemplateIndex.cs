@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace AbyssMod.Services;
@@ -21,16 +23,19 @@ public sealed class RegexTemplateIndex
     private const string RawPrefix = "re:";
 
     private Dictionary<string, string> _exact = new();
-    private Dictionary<string, string> _exactNorm = new();
+    // norm → (originalKey, translatedValue)
+    private Dictionary<string, (string OrigKey, string Value)> _exactNorm = new();
     private List<Template> _templates = new();
+    private IReadOnlyDictionary<string, string> _keySources;
 
     private static readonly Regex Slot = new(@"\{\[([^\]]+)\]\}", RegexOptions.Compiled);
     private static readonly Regex ColorTag = new(@"</?color[^>]*>", RegexOptions.Compiled);
 
-    public void Rebuild(Dictionary<string, string> dict)
+    public void Rebuild(Dictionary<string, string> dict, IReadOnlyDictionary<string, string> keySources = null)
     {
         _exact = dict ?? new Dictionary<string, string>();
-        _exactNorm = new Dictionary<string, string>(StringComparer.Ordinal);
+        _exactNorm = new Dictionary<string, (string, string)>(StringComparer.Ordinal);
+        _keySources = keySources;
         var list = new List<Template>();
 
         foreach (var kv in _exact)
@@ -44,8 +49,17 @@ public sealed class RegexTemplateIndex
             }
 
             string norm = Normalize(kv.Key);
-            if (!_exactNorm.TryAdd(norm, kv.Value))
-                Logger.Warn($"RegexTemplateIndex: duplicate normalized key ignored: {kv.Key}");
+            if (!_exactNorm.TryAdd(norm, (kv.Key, kv.Value)))
+            {
+                var kept = _exactNorm[norm];
+                Logger.Warn(
+                    $"RegexTemplateIndex: duplicate normalized key ignored\n"
+                    + $"  kept:    {kept.OrigKey} ({SourceOf(kept.OrigKey)})\n"
+                    + $"           => {kept.Value}\n"
+                    + $"  ignored: {kv.Key} ({SourceOf(kv.Key)})\n"
+                    + $"           => {kv.Value}"
+                );
+            }
 
             var slots = Slot.Matches(norm);
             if (slots.Count == 0)
@@ -92,6 +106,30 @@ public sealed class RegexTemplateIndex
         _templates = list;
     }
 
+    private string SourceOf(string key)
+    {
+        if (_keySources == null || !_keySources.TryGetValue(key, out var filePath))
+            return "unknown";
+        int line = FindLineInFile(filePath, key);
+        return line >= 0 ? $"{filePath}:{line}" : filePath;
+    }
+
+    private static int FindLineInFile(string filePath, string key)
+    {
+        if (!File.Exists(filePath))
+            return -1;
+        // Serialize the key so special chars are properly escaped for JSON matching
+        string jsonKey = JsonSerializer.Serialize(key);
+        int lineNum = 1;
+        foreach (var line in File.ReadLines(filePath))
+        {
+            if (line.Contains(jsonKey, StringComparison.Ordinal))
+                return lineNum;
+            lineNum++;
+        }
+        return -1;
+    }
+
     private static Template BuildRawRegexTemplate(string pattern, string translation)
     {
         Regex rx;
@@ -129,8 +167,11 @@ public sealed class RegexTemplateIndex
             return true;
 
         string norm = Normalize(text);
-        if (_exactNorm.TryGetValue(norm, out result))
+        if (_exactNorm.TryGetValue(norm, out var entry))
+        {
+            result = entry.Value;
             return true;
+        }
 
         foreach (var t in _templates)
         {
