@@ -97,12 +97,12 @@ public class TranslationManager
         {
             Logger.Info("Reloading translations...");
             await LoadTranslationAsync();
-            Toast.Success("AbyssMod", "Translations reloaded");
+            Plugin.RunOnMainThread(() => Toast.Success("AbyssMod", "Translations reloaded"));
         }
         catch (Exception e)
         {
             Logger.Warn($"Translation reload failed: {e.Message}");
-            Toast.Warn("AbyssMod", $"Reload failed: {e.Message}");
+            Plugin.RunOnMainThread(() => Toast.Warn("AbyssMod", $"Reload failed: {e.Message}"));
         }
         finally
         {
@@ -153,7 +153,7 @@ public class TranslationManager
             {
                 Logger.Warn($"Translation load failed [{type}]");
                 if (CriticalTypes.Contains(type))
-                    Toast.Warn("Load failed", $"Translation load failed: {type}");
+                    Plugin.RunOnMainThread(() => Toast.Warn("Load failed", $"Translation load failed: {type}"));
             }
         }
 
@@ -338,7 +338,7 @@ public class TranslationManager
             else
             {
                 Logger.Warn($"Translations loaded failed: {novelId}");
-                Toast.Warn("Load failed", $"Scenario ID: {novelId}");
+                Plugin.RunOnMainThread(() => Toast.Warn("Load failed", $"Scenario ID: {novelId}"));
             }
             tcs.SetResult();
         }

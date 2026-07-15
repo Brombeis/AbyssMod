@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using AbyssMod.Patches;
 using AbyssMod.Services;
 using BepInEx;
@@ -27,6 +28,17 @@ public class Plugin : BasePlugin
     public static MonoBehaviour Instance;
     public static TranslationManager Trans;
 
+    private static SynchronizationContext _mainThreadContext;
+
+    /// <summary>Runs <paramref name="action"/> on the Unity main thread (safe to call from async tasks).</summary>
+    public static void RunOnMainThread(Action action)
+    {
+        if (_mainThreadContext != null)
+            _mainThreadContext.Post(_ => action(), null);
+        else
+            action();
+    }
+
     public override void Load()
     {
         try
@@ -41,6 +53,7 @@ public class Plugin : BasePlugin
             AbyssMod.Config.OfflineStartup = true;
 #endif
 
+        _mainThreadContext = SynchronizationContext.Current;
         Log = base.Log;
         ConfigFile = base.Config;
         Log.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");

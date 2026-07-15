@@ -76,6 +76,7 @@ public static class TextTranslator
 
     public static bool HasKana(string s)
     {
+        if (string.IsNullOrEmpty(s)) return false;
         foreach (char c in s)
         {
             if ((c >= '\u3040' && c <= '\u309F') || (c >= '\u30A0' && c <= '\u30FF'))
@@ -90,6 +91,7 @@ public static class TextTranslator
     /// </summary>
     public static bool HasJapanese(string s)
     {
+        if (string.IsNullOrEmpty(s)) return false;
         foreach (char c in s)
         {
             if ((c >= '\u3040' && c <= '\u30FF')      // hiragana + katakana
