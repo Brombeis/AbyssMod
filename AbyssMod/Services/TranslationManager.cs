@@ -20,11 +20,10 @@ namespace AbyssMod.Services;
 /// </summary>
 public class TranslationManager
 {
-    private static readonly HashSet<string> CriticalTypes =
-    [
-        TranslationPaths.Names,
-        TranslationPaths.UiTexts,
-    ];
+    // ui_texts was never populated on this English fork (removed entirely from the
+    // CDN repo — Chinese-only content, unused) and its absence is already handled
+    // gracefully everywhere it's read, so it's not critical here.
+    private static readonly HashSet<string> CriticalTypes = [TranslationPaths.Names];
 
     private readonly TranslationCache _cache;
     private readonly FontHelper _font;
@@ -98,6 +97,10 @@ public class TranslationManager
         try
         {
             Logger.Info("Reloading translations...");
+
+            Novels.Clear();
+            _loadingNovels.Clear();
+
             await LoadTranslationAsync();
             Plugin.RunOnMainThread(() => Toast.Success("AbyssMod", "Translations reloaded"));
         }
