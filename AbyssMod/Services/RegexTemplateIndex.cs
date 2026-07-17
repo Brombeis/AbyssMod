@@ -72,7 +72,10 @@ public sealed class RegexTemplateIndex
             {
                 Match m = slots[i];
                 sb.Append(Regex.Escape(norm.Substring(last, m.Index - last)));
-                sb.Append("(.+?)");
+                // Exclude Japanese characters (kana + kanji + CJK punctuation) from slot captures.
+                // Prevents templates like `フィオナ Lv{[n1]}` from matching
+                // `フィオナ Lv40をクリアで開放` and capturing the trailing Japanese text.
+                sb.Append(@"([^぀-ヿ一-鿿　-〿]+?)");
                 names[i] = m.Groups[1].Value;
                 last = m.Index + m.Length;
             }
